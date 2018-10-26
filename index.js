@@ -11,6 +11,8 @@ const app = express();
 const clientOAuth2 = require('client-oauth2');
 const AWS = require('aws-sdk');
 
+const tableName = process.env.TABLE_NAME || "TrackedChannels"
+
 AWS.config.update({
     region: 'us-east-1',
     endpoint: process.env.DYNAMODB_ENDPOINT || 'http://localhost:8000'
@@ -20,7 +22,7 @@ AWS.config.update({
 const dynamodb = new AWS.DynamoDB();
 
 var params = {
-    TableName: "TrackedChannels",
+    TableName: tableName,
     KeySchema: [
         { AttributeName: "channel", KeyType: "HASH"}
     ],
@@ -40,12 +42,19 @@ dynamodb.createTable(params, function(err, data){
         console.log("Created table. Table description JSON:", JSON.stringify(data, null, 2));
     }
 });
+const documentClient = new AWS.DynamoDB.DocumentClient();
 
 // Here we load the config.json file that contains our token and our prefix values. 
 const config = require("./config.json");
 const nightBotApiBase = "https://api.nightbot.tv/1";
 // config.token contains the bot's token
 // config.prefix contains the message prefix.
+
+const commandMap = new Map([
+    ['!c', 'Thanks to our volunteers! Commentary: $(commentators) // Tracking: $(trackers) // Restream: $(restreamers)'],
+    ['!r', 'Enjoying the race? Follow the runners! $(runners)'],
+    ['!mode', 'The settings for this match are $(variations). See more information on these settings at https://alttpr.com/options !'],
+]);
 
 var nightbotAuth = new clientOAuth2({
     clientId: config.nightbotClientId,
@@ -61,7 +70,7 @@ var expectedChannels = ['hancin', 'alttprandomizer'];
 
 
 // TODO: Actually save the tokens from the auth workflow
-var nightbotUserToken = null
+var nightbotUserToken = null;
 
 app.get('/auth/nightbot', function (req, res){
     var uri = nightbotAuth.code.getUri();
@@ -73,14 +82,20 @@ app.get('/auth/nightbot/callback', function (req, res) {
     nightbotAuth.code.getToken(req.originalUrl)
     .then(validateChannel)
     .then(detectCommands)
+    .then(updateChannelDb)
     .then(fullInfo => {
-        return res.send("All worked ok, channel registered");
+        return res.send(fullInfo.messages.join("<br />"));
     })
     .catch(function(err){
         console.log(err);
         return res.send(err);
     });
 });
+
+function log(array, message){
+    array.push(message);
+    console.log(message);
+}
 
 function validateChannel(user){
     return fetch(`${nightBotApiBase}/channel`, user.sign({}))
@@ -90,6 +105,7 @@ function validateChannel(user){
             console.log(`Please check this channel response? ${json}`);
             return Promise.reject("Cannot register channel, because the response was invalid.");
         }
+        let messages = [];
 
         let name = json.channel.name;
         if(!expectedChannels.some(x => name.indexOf(x) !== -1)){
@@ -97,11 +113,52 @@ function validateChannel(user){
             return Promise.reject("Cannot register channel, because the channel is not whitelisted.");
         }
 
-        console.log(`${name} is a valid channel, continuing workflow.`);
+        log(messages, (`Detected that you want to add the bot to channel ${name}. This channel name is whitelisted`));
         return Promise.resolve({
             channel: name,
-            user: user
+            user: user,
+            messages: messages
         });
+    });
+}
+
+function updateChannelDb(channelInfo){
+    var existing = documentClient.get({TableName: tableName, Key: { channel: channelInfo.channel }}).promise();
+
+    console.log(channelInfo.user);
+    let sanitizedData = {
+        channel: channelInfo.channel,
+        accessToken: channelInfo.user.accessToken,
+        refreshToken: channelInfo.user.refreshToken,
+        expiresAt: channelInfo.user.expires,
+        commands: channelInfo.commands,
+        updated: new Date().toISOString()
+    }
+    console.log(sanitizedData);
+
+    let channelData;
+
+    return existing
+    .then(data => {
+        if(!data.Item){
+            log(channelInfo.messages, `This is a channel not previously in the DB. Creating it...`);
+            channelData = Object.assign({}, sanitizedData);
+        }else {
+            log(channelInfo.messages, `This channel already exists in the DB, updating...`);
+            channelData = Object.assign({}, data.Item, sanitizedData);
+        }
+
+        if(!channelData.created){
+            channelData.created = new Date().toISOString();
+        }
+
+        return documentClient.put({TableName: tableName, Item: channelData}).promise();
+    })
+    .then(data =>{
+        log(channelInfo.messages, `Channel ${channelData.channel} added to DB.`);
+
+        nightbotUserToken = channelInfo.user;
+        return Promise.resolve(channelInfo);
     });
 
 }
@@ -114,51 +171,28 @@ function detectCommands(channelInfo){
             console.log(`Please check this command response? ${json}`);
             return Promise.reject("Cannot register channel, because the response was invalid.");
         }
-        var commandMap = new Map([
-            ['!c', 'Thanks to our volunteers! Commentary: $(commentators) // Tracking: $(trackers) // Restream: $(restreamers)'],
-            ['!r', 'Enjoying the race? Follow the runners! $(runners)']
-            ['!mode', 'The settings for this match are $(variations). See more information on these settings at https://alttpr.com/options !']
-        ]);
 
-        for(var [name, defaultText] in commandMap){
-            var customCommand = json.commands.find(x => x.) 
+        channelInfo.commands = {};
+
+        for(let [name, defaultText] of commandMap){
+            var customCommand = json.commands.find(x => x.name === name);
+            if(customCommand){
+                log(channelInfo.messages, `Command ${name} exists with ID ${customCommand._id}. Adding to registry.`);
+                channelInfo.commands[name] = customCommand._id;
+
+            }else{
+                log(channelInfo.messages, `Command ${name} wasn't found. You'll need to create it then register the channel again.`);
+            }
+            
         }
 
-        console.log(json);
-        nightbotUserToken = channelInfo.user;
-        return Promise.resolve();
+        return Promise.resolve(channelInfo);
     });
 }
 
 app.get('/channels', function (req, res){
-    
-    fetch(`${nightBotApiBase}/channel`, nightbotUserToken.sign({}))
-    .then(response => response.json())
-    .then(json => {
-        console.log(json)
-        return res.send(json);
-    })
-    .catch(function(err){
-        console.log(apiResponse);
-            return res.send("not ok");
-    });
-
 });
 
-app.get('/commands', function (req, res){
-    
-    fetch(`${nightBotApiBase}/commands`, nightbotUserToken.sign({}))
-    .then(response => response.json())
-    .then(json => {
-        console.log(json)
-        return res.send(json);
-    })
-    .catch(function(err){
-        console.log(apiResponse);
-            return res.send("not ok");
-    });
-
-});
 
 
 
