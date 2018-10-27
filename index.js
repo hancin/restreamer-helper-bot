@@ -10,6 +10,7 @@ const fs = require('fs');
 const app = express();
 const clientOAuth2 = require('client-oauth2');
 const AWS = require('aws-sdk');
+const moment = require('moment');
 
 const tableName = process.env.TABLE_NAME || "TrackedChannels"
 
@@ -133,6 +134,8 @@ function log(array, message){
 
 setInterval(updateTwitchIds, 1000 * 3600);
 updateTwitchIds();
+setInterval(updateAccessTokens, 1000 * 900);
+updateAccessTokens();
 
 /**
  * The goal of this function is to map channel names to twitch channel IDs
@@ -159,6 +162,55 @@ async function updateTwitchIds(){
     }
 
 
+}
+
+async function updateAccessTokens(){
+    try{
+        let docs = await documentClient.scan({TableName: tableName}).promise();
+
+        for(var i = 0; i< docs.Items.length;i++){
+            let channel = docs.Items[i];
+
+            console.log(channel.channel, "nightbot", moment(channel.expiresAt).fromNow());
+            if(channel.expiresAt 
+                && moment(channel.expiresAt).isBefore(moment().add(30, "minutes"))
+            ){
+                console.log("this nb token needs a refresh");
+                let nbToken = nightbotAuth.createToken(channel.accessToken, channel.refreshToken, 'bearer');
+                nbToken.expiresIn(new Date(channel.expiresAt));
+
+                nbToken.refresh().then(token => {
+                    console.log(token);
+                    updateChannelDb({
+                        channel: channel.channel,
+                        messages: [],
+                        user: token
+                    });
+                })
+            }
+
+            console.log(channel.channel, "twitch", moment(channel.twitchExpiresAt).fromNow());
+            if(channel.twitchExpiresAt 
+                && moment(channel.twitchExpiresAt).isBefore(moment().add(30, "minutes"))
+            ){
+                console.log("this twitch token needs a refresh");
+                let twitchToken = twitchAuth.createToken(channel.twitchAccessToken, channel.twitchRefreshToken, 'bearer');
+                twitchToken.expiresIn(new Date(channel.twitchExpiresAt));
+
+                twitchToken.refresh({body: {"client_id": config.twitchClientId, "client_secret": config.twitchClientSecret}}).then(token => {
+                    console.log(token);
+                    updateChannelDb({
+                        channel: channel.channel,
+                        messages: [],
+                        twitchUser: token
+                    });
+                })
+            }
+        }
+
+    } catch (e) {
+        console.log(e);
+    }
 }
 
 async function isTwitchChannelOnline(channel){
@@ -198,7 +250,7 @@ function validateTwitchChannel(user){
         let messages = [];
 
         let name = json.token.user_name;
-        if(!expectedChannels.some(x => name.indexOf(x) !== -1)){
+        if(!expectedChannels.some(x => name.toLowerCase().indexOf(x) !== -1)){
             console.log(`Invalid: ${name}`);
             return Promise.reject("Cannot register channel, because the channel is not whitelisted.");
         }
@@ -226,7 +278,7 @@ function validateChannel(user){
         let messages = [];
 
         let name = json.user.displayName;
-        if(!expectedChannels.some(x => name.indexOf(x) !== -1)){
+        if(!expectedChannels.some(x => name.toLowerCase().indexOf(x) !== -1)){
             console.log(`Invalid: ${name}`);
             return Promise.reject("Cannot register channel, because the channel is not whitelisted.");
         }
@@ -330,6 +382,105 @@ function parsePlayer(entry){
 	return runner;
 }
 
+function prettifyEpisode(episode){
+    let result = "";
+    let name = "";
+    if(episode.channels.length > 0){
+        var isAlttpr = (episode.channels && episode.channels.some(c => expectedChannels.some(e=>c.name.toLowerCase().indexOf(e)) !== -1));
+        var channel = episode.channels && episode.channels[0];
+        name += "**"+moment(episode.when).format('LT')+"** | ";
+
+        name += "__"
+        if(episode.match1 && episode.match1.players){
+            name += episode.match1.players.map(parsePlayer).map(x=>x.name).join(" vs ")
+        }
+        if(episode.match2 && episode.match2.players){
+            name += " and " + episode.match2.players.map(parsePlayer).map(x=>x.name).join(" vs ")
+        }
+        name += "__";
+        result += "ID: "+episode.id+" | ["+channel.name+"](https://twitch.tv/"+channel.name+")";
+        result += "\n Commentators: ";
+
+        let commentators = episode.commentators.filter(x=>x.approved).map(parsePlayer).map(x=>x.discord);
+        let commSignups = episode.commentators.length - commentators.length;
+        result += commentators.join(", ");
+        if(commentators.length < 2){
+            result += ` (+${commSignups} signups)`;
+        }
+
+        result +=" \n Trackers: ";
+        let trackers = episode.trackers.filter(x=>x.approved).map(parsePlayer).map(x=>x.discord);
+        let trackSignups = episode.trackers.length - trackers.length;
+        result += trackers.join(", ");
+        if(trackers.length < 1){
+            result += ` (+${trackSignups} signups)`;
+        }
+
+        if(isAlttpr){
+            result +=" \n Restreamers: ";
+            let broadcasters = episode.broadcasters.filter(x=>x.approved).map(parsePlayer).map(x=>x.discord);
+            let bcSignups = episode.broadcasters.length - broadcasters.length;
+            result += "**"+ broadcasters.join(", ")+"**";
+            if(broadcasters.length < 1){
+                result += ` (+${bcSignups} signups)`;
+            }
+        }
+
+        result += "\n    _"+episode.match1.title+"_";
+
+
+
+    }
+
+    return {name: name, value: result};
+}
+
+async function getSchedule(baseTime){
+    if(baseTime && baseTime.toLowerCase() == "yesterday"){
+        baseTime = moment().subtract(1, "day").startOf('day').format();
+    }
+    if(baseTime && baseTime.toLowerCase() == "today"){
+        baseTime = moment().startOf('day').format();
+    }
+    if(baseTime && baseTime.toLowerCase() == "tomorrow"){
+        baseTime = moment().add(1, "day").startOf("day").format();
+    }
+    if(!moment(baseTime).isValid()){
+        baseTime = null;
+    }
+    let episodes = await fetch(`${config.sgApi}/schedule/?from=${moment(baseTime).startOf('day').format()}&to=${moment(baseTime).endOf('day').format()}&event=alttpr`).then(r=>r.json());
+    console.log(episodes);
+    let alttpr = episodes.filter(m => m.approved && (m.channels && m.channels.some(c => expectedChannels.some(e=>c.name.toLowerCase().indexOf(e) !== -1))));
+    let sg = episodes.filter(m => m.approved && (m.channels && m.channels.some(c => c.name.toLowerCase().indexOf("speedgaming") !== -1)));
+
+    console.log(alttpr);
+
+    let alttprText = alttpr.map(prettifyEpisode);
+    let sgText = sg.map(prettifyEpisode);
+
+    if(!alttprText){
+        alttprText = "No matches assigned on schedule yet.";
+    }
+    if(!sgText){
+        sgText = "Nothing on SG.";
+    }
+
+    var embed = {
+        color: 0xFFF0E0,
+        author: {
+            name: self.user.username,
+            icon_url: self.user.avatarURL
+        },
+        title: `Schedule information for ${moment(baseTime).format('ll')}`,
+        description: "Here's what we know about the schedule so far.",
+        fields: [
+            ...alttprText
+        ]
+    }
+
+    return embed;
+}
+
 async function updateCommands(id, override){
 
     var data = {};
@@ -386,6 +537,13 @@ async function updateCommands(id, override){
                 data.confirmationType = "channel-online";
                 return data;
             }
+        }
+
+        if(!moment(episode.when).isBetween(moment().subtract(6, "hours").startOf("hour"), moment().add(6, "hours").endOf("hour")) && !override){
+            data.success = false;
+            data.needsConfirmation = true;
+            data.confirmationType = "wrong-timing";
+            return data;
         }
 
         let promises = [];
@@ -556,54 +714,69 @@ self.on("message", async message => {
     // args = ["Is", "this", "the", "real", "life?"]
     const args = message.content.slice(config.prefix.length).trim().split(/ +/g);
     const command = args.shift().toLowerCase();
+    try{
+        if(command === "schedule"){
+            if(!message.member.roles.some(n=>n.name === "Admins") //Admins - always allowed
+            && !message.member.roles.some(n=>n.name === "Mods")){
 
-    if(command === "commands" || command === "confirmcommands") {
-        if(!message.member.roles.some(n=>n.name === "Admins") //Admins - always allowed
-        && !message.member.roles.some(n=>n.name === "Mods")  //Mods - always allowed
-        && !(message.member.roles.some(n=>n.name === "Restreamers") && command === "commands")){ //Restreamers - allow the non-override version only
-            message.react('📛');
-        }else{
-            const result = await updateCommands(args[0], command === "confirmcommands");
-    
-            if(result.success){
-                message.react('✅');
-            }else if(result.needsConfirmation){
-                message.react('⚠');
-                switch(result.confirmationType){
-                    case "channel-online":
-                        await message.channel.send(`The channel your race is currently on is currently online, so the commands cannot be updated right now. A moderator can override this by using \`$confirmCommands ${args[0]}\``);
-                        break;
-                    default:
-                        await message.channel.send(`Needs confirmation: ${result.confirmationType}`);
-                        break;
-                }
             }else{
-                message.react('❌');
-                switch(result.errorType){
-                    case "not-found":
-                        await message.channel.send(`Could not find episode ${args[0]}.`);
-                        break;
-                    case "invalid-channel":
-                        await message.channel.send(`Cannot update commands because this bot cannot update the channel. Please notify the moderators if this is an error.`);
-                        break;
-                    case "not-approved":
-                        await message.channel.send(`This match has not been approved. Please notify the moderators if this is an error.`);
-                        break;
-                    case "no-channel":
-                        await message.channel.send(`This match does not have a broadcast channel. Please notify the moderators if this is an error.`);
-                        break;
-                    case "no-channel-data":
-                        await message.channel.send(`I cannot update this channel yet. Please notify the moderators if this is an error.`);
-                        break;
-                    case "update-error":
-                        	await message.channel.send(`I cannot update the channel due to an API error. Please contact the moderators.`);
-                        break;
-                    default:
-                        await message.channel.send(`Could not complete due to an error: ${result.errorType}`);
-                        break;
+                let result = await getSchedule(args.length === 0? moment().format() : args[0]);
+                await message.channel.send({embed: result});
+            }
+        }
+        if(command === "commands" || command === "confirmcommands") {
+            if(!message.member.roles.some(n=>n.name === "Admins") //Admins - always allowed
+            && !message.member.roles.some(n=>n.name === "Mods")  //Mods - always allowed
+            && !(message.member.roles.some(n=>n.name === "Restreamers") && command === "commands")){ //Restreamers - allow the non-override version only
+                message.react('📛');
+            }else{
+                const result = await updateCommands(args[0], command === "confirmcommands");
+        
+                if(result.success){
+                    message.react('✅');
+                }else if(result.needsConfirmation){
+                    message.react('⚠');
+                    switch(result.confirmationType){
+                        case "channel-online":
+                            await message.channel.send(`The channel your race is currently on is currently online, so the commands cannot be updated right now. A moderator can override this by using \`$confirmcommands ${args[0]}\``);
+                            break;
+                        case "wrong-timing":
+                            await message.channel.send(`This episode is not scheduled to run in the next or previous six hours. Are you sure you've got the right match?  A moderator can override this by using \`$confirmcommands ${args[0]}\` `);
+                            break;
+                        default:
+                            await message.channel.send(`Needs confirmation: ${result.confirmationType}`);
+                            break;
+                    }
+                }else{
+                    message.react('❌');
+                    switch(result.errorType){
+                        case "not-found":
+                            await message.channel.send(`Could not find episode ${args[0]}.`);
+                            break;
+                        case "invalid-channel":
+                            await message.channel.send(`Cannot update commands because this bot cannot update the channel. Please notify the moderators if this is an error.`);
+                            break;
+                        case "not-approved":
+                            await message.channel.send(`This match has not been approved. Please notify the moderators if this is an error.`);
+                            break;
+                        case "no-channel":
+                            await message.channel.send(`This match does not have a broadcast channel. Please notify the moderators if this is an error.`);
+                            break;
+                        case "no-channel-data":
+                            await message.channel.send(`I cannot update this channel yet. Please notify the moderators if this is an error.`);
+                            break;
+                        case "update-error":
+                            await message.channel.send(`I cannot update the channel due to an API error. Please contact the moderators.`);
+                            break;
+                        default:
+                            await message.channel.send(`Could not complete due to an error: ${result.errorType}`);
+                            break;
+                    }
                 }
             }
         }
+    } catch(e){
+        message.channel.send(`An error occured: `+e.stack);
     }
 });
 

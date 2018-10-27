@@ -21,6 +21,7 @@
     "erlpack": "github:discordapp/erlpack",
     "express": "^4.16.4",
     "libsodium-wrappers": "^0.7.3",
+    "moment": "^2.22.2",
     "node-fetch": "^2.2.0",
     "node-opus": "^0.2.7",
     "opusscript": "^0.0.6",
