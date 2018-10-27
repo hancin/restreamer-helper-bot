@@ -65,15 +65,34 @@ var nightbotAuth = new clientOAuth2({
     scopes: ["channel", "commands"]
 });
 
+var twitchAuth = new clientOAuth2({
+    clientId: config.twitchClientId,
+    clientSecret: config.twitchClientSecret,
+    accessTokenUri: 'https://id.twitch.tv/oauth2/token',
+    authorizationUri: 'https://id.twitch.tv/oauth2/authorize',
+    redirectUri: process.env.TWITCH_CALLBACK_URI || 'https://localhost:3000/auth/twitch/callback',
+    scopes: ["channel_editor"]
+});
+
+const twitchHeaders = {"Client-ID": config.twitchClientId, "Accept": "application/vnd.twitchtv.v5+json"};
+
 // This is the expected channel patterns this bot should register to.
 var expectedChannels = ['hancin', 'alttprandomizer'];
+
+var overrideChannels = ["ALTTPRandomizer", "ALTTPRandomizer2", "ALTTPRandomizer3", "ALTTPRandomizer4", "ALTTPRandomizer5"];
 
 
 // TODO: Actually save the tokens from the auth workflow
 var nightbotUserToken = null;
 
+let channelMap = new Map();
+
 app.get('/auth/nightbot', function (req, res){
     var uri = nightbotAuth.code.getUri();
+    res.redirect(uri);
+});
+app.get('/auth/twitch', function (req, res){
+    var uri = twitchAuth.code.getUri();
     res.redirect(uri);
 });
 
@@ -92,9 +111,110 @@ app.get('/auth/nightbot/callback', function (req, res) {
     });
 });
 
+app.get('/auth/twitch/callback', function (req, res) {
+    console.log('Login request received from Twitch');
+    twitchAuth.code.getToken(req.originalUrl, {body: {"client_id": config.twitchClientId, "client_secret": config.twitchClientSecret}})
+    .then(validateTwitchChannel)
+    
+    .then(fullInfo => {
+        console.log(fullInfo);
+        return res.send(fullInfo.messages.join("<br />"));
+    })
+    .catch(function(err){
+        console.log(err);
+        return res.send(err);
+    });
+});
+
 function log(array, message){
     array.push(message);
     console.log(message);
+}
+
+setInterval(updateTwitchIds, 1000 * 3600);
+updateTwitchIds();
+
+/**
+ * The goal of this function is to map channel names to twitch channel IDs
+ * so we can later update title and get status.
+ */
+async function updateTwitchIds(){
+    try{
+        let docs = await documentClient.scan({TableName: tableName}).promise();
+
+        var channels = [...overrideChannels, ...docs.Items.map(x=>x.channel)];
+
+        console.log(channels);
+
+        let userInfo = await fetch("https://api.twitch.tv/kraken/users?login="+channels.join(","), {
+            headers: twitchHeaders
+        });
+
+        let json = await userInfo.json();
+
+        json.users.forEach(user => {
+            channelMap.set(user.display_name, user._id);
+        });
+
+        channelMap.set("hancin", "177910405");
+
+        console.log(channelMap);
+    } catch (e) {
+        console.log(e);
+    }
+
+
+}
+
+async function isTwitchChannelOnline(channel){
+    try{    
+        if(!channelMap.has(channel)){
+            await updateTwitchIds();
+        }
+        if(!channelMap.has(channel)){
+            console.log(`Skipping online verification because I don't have the ID for channel ${channel}`);
+            return [false, null];
+        }
+        var response = await fetch("https://api.twitch.tv/kraken/streams/" + channelMap.get(channel), {headers: twitchHeaders});
+        var json = await response.json();
+        console.log(json);
+        var isOnline = json.stream !== null;
+        return [isOnline, isOnline? json.stream.status : null];
+    }catch(e){
+        console.log(`Error while doing verification:`, e);
+        return [false, null];
+    }
+}
+
+function updateForTwitch(params){
+    params.headers['Authorization'] = params.headers['Authorization'].replace('Bearer', 'OAuth');
+    return params;
+}
+function validateTwitchChannel(user){
+    console.log(updateForTwitch(user.sign({headers: twitchHeaders})));
+    return fetch(`https://api.twitch.tv/kraken/user`, updateForTwitch(user.sign({headers: twitchHeaders})))
+    .then(response => response.json())
+    .then(json => {
+        console.log(json);
+        if(!json || json.status !== 200 || !json.name){
+            console.log(`Please check this channel response? ${json}`);
+            return Promise.reject("Cannot register channel, because the response was invalid.");
+        }
+        let messages = [];
+
+        let name = json.name;
+        if(!expectedChannels.some(x => name.indexOf(x) !== -1)){
+            console.log(`Invalid: ${name}`);
+            return Promise.reject("Cannot register channel, because the channel is not whitelisted.");
+        }
+
+        log(messages, (`Detected that you want to add the bot to channel ${name}. This channel name is whitelisted`));
+        return Promise.resolve({
+            channel: name,
+            twitchUser: user,
+            messages: messages
+        });
+    });
 }
 
 function validateChannel(user){
@@ -190,6 +310,72 @@ function detectCommands(channelInfo){
     });
 }
 
+async function updateCommands(id, override){
+
+    var data = {};
+    try{
+        let episode = await fetchEpisode(id);
+
+        if(!episode.approved){
+            data.success = false;
+            data.errorType = "not-approved";
+            return data;
+        }
+        if(!episode.channels || episode.channels.length === 0){
+            data.success = false;
+            data.errorType = "no-channel";
+            return data;
+        }
+
+        var channel = episode.channels.find(x => x.slug.indexOf("alttpr") === 0);
+
+        if(!channel){
+            data.success = false;
+            data.errorType = "invalid-channel";
+            return data;
+        }
+
+
+        var isOnline = await isTwitchChannelOnline(channel.name);
+
+        if(isOnline && !override){
+            data.success = false;
+            data.needsConfirmation = true;
+            data.confirmationType = "channel-online";
+            return data;
+        }
+
+        data.success = true;
+        data.episode = episode;
+    }
+    catch(e){
+        if(e === 404 || e.error){
+            data.success = false;
+            data.errorType = "not-found";
+        }
+    }
+
+    return data;
+}
+
+function fetchEpisode(id){
+    return fetch(`${config.sgApi}/episode?id=${id}`)
+    .then(response => response.json())
+    .then(json => {
+        if(!json || json.error){
+            console.log(json.error);
+            return Promise.reject(404);
+        }
+
+        console.log(json);
+        return Promise.resolve(json);
+    })
+    .catch(err =>{
+        console.log(err);
+        return Promise.reject(404);
+    });
+}
+
 app.get('/channels', function (req, res){
 });
 
@@ -239,6 +425,39 @@ self.on("message", async message => {
         // The second ping is an average latency between the bot and the websocket server (one-way, not round-trip)
         const m = await message.channel.send("Ping?");
         m.edit(`Pong! Latency is ${m.createdTimestamp - message.createdTimestamp}ms. API Latency is ${Math.round(self.ping)}ms`);
+    }
+
+    if(command === "commands") {
+        if(!message.member.roles.some(n=>n.name === "Admins") && !message.member.roles.some(n=>n.name === "Mods")){
+            message.react('📛');
+        }else{
+            const result = await updateCommands(args[0], false);
+    
+            if(result.success){
+                message.react('✅');
+            }else if(result.needsConfirmation){
+                message.react('⚠');
+                switch(result.confirmationType){
+                    case "channel-online":
+                        await message.channel.send(`The channel your race is currently on is currently online, so the commands cannot be updated right now. A moderator can override this by using \`$confirmCommands ${args[0]}\``);
+                        break;
+                    default:
+                        await message.channel.send(`Needs confirmation: ${result.confirmationType}`);
+                        break;
+                }
+            }else{
+                message.react('❌');
+                if(result.errorType === "not-found"){
+                    await message.channel.send(`Could not find episode ${args[0]}.`);
+                }else if(result.errorType === "invalid-channel"){
+                    await message.channel.send(`Cannot update commands because this bot cannot update the channel. Please notify the moderators if this is an error.`);
+                }else if(result.errorType === "not-approved"){
+                    await message.channel.send(`This match has not been approved. Please notify the moderators if this is an error.`);
+                }else if(result.errorType === "no-channel"){
+                    await message.channel.send(`This match does not have a broadcast channel. Please notify the moderators if this is an error.`);
+                }
+            }
+        }
     }
 });
 
