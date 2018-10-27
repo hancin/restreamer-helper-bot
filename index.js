@@ -55,6 +55,7 @@ const commandMap = new Map([
     ['!r', 'Enjoying the race? Follow the runners! $(runners)'],
     ['!mode', 'The settings for this match are $(variations). See more information on these settings at https://alttpr.com/options !'],
 ]);
+let titleTemplate = "$(name). $(runnerNames). !alttpr for info, !mode for settings";
 
 var nightbotAuth = new clientOAuth2({
     clientId: config.nightbotClientId,
@@ -62,7 +63,7 @@ var nightbotAuth = new clientOAuth2({
     accessTokenUri: 'https://api.nightbot.tv/oauth2/token',
     authorizationUri: 'https://api.nightbot.tv/oauth2/authorize',
     redirectUri: process.env.NIGHTBOT_CALLBACK_URI || 'https://localhost:3000/auth/nightbot/callback',
-    scopes: ["channel", "commands"]
+    scopes: ["commands"]
 });
 
 var twitchAuth = new clientOAuth2({
@@ -115,9 +116,8 @@ app.get('/auth/twitch/callback', function (req, res) {
     console.log('Login request received from Twitch');
     twitchAuth.code.getToken(req.originalUrl, {body: {"client_id": config.twitchClientId, "client_secret": config.twitchClientSecret}})
     .then(validateTwitchChannel)
-    
+    .then(updateChannelDb)
     .then(fullInfo => {
-        console.log(fullInfo);
         return res.send(fullInfo.messages.join("<br />"));
     })
     .catch(function(err){
@@ -144,8 +144,6 @@ async function updateTwitchIds(){
 
         var channels = [...overrideChannels, ...docs.Items.map(x=>x.channel)];
 
-        console.log(channels);
-
         let userInfo = await fetch("https://api.twitch.tv/kraken/users?login="+channels.join(","), {
             headers: twitchHeaders
         });
@@ -156,9 +154,6 @@ async function updateTwitchIds(){
             channelMap.set(user.display_name, user._id);
         });
 
-        channelMap.set("hancin", "177910405");
-
-        console.log(channelMap);
     } catch (e) {
         console.log(e);
     }
@@ -179,7 +174,7 @@ async function isTwitchChannelOnline(channel){
         var json = await response.json();
         console.log(json);
         var isOnline = json.stream !== null;
-        return [isOnline, isOnline? json.stream.status : null];
+        return [isOnline, isOnline? json.stream.channel.status : null];
     }catch(e){
         console.log(`Error while doing verification:`, e);
         return [false, null];
@@ -191,24 +186,27 @@ function updateForTwitch(params){
     return params;
 }
 function validateTwitchChannel(user){
+    
     console.log(updateForTwitch(user.sign({headers: twitchHeaders})));
-    return fetch(`https://api.twitch.tv/kraken/user`, updateForTwitch(user.sign({headers: twitchHeaders})))
+    return fetch(`https://api.twitch.tv/kraken`, updateForTwitch(user.sign({headers: twitchHeaders})))
     .then(response => response.json())
     .then(json => {
-        console.log(json);
-        if(!json || json.status !== 200 || !json.name){
-            console.log(`Please check this channel response? ${json}`);
+        if(!json || !json.token || !json.token.valid || !json.token.user_name){
+            console.log(`Please check this channel response?`, json);
             return Promise.reject("Cannot register channel, because the response was invalid.");
         }
         let messages = [];
 
-        let name = json.name;
+        let name = json.token.user_name;
         if(!expectedChannels.some(x => name.indexOf(x) !== -1)){
             console.log(`Invalid: ${name}`);
             return Promise.reject("Cannot register channel, because the channel is not whitelisted.");
         }
 
         log(messages, (`Detected that you want to add the bot to channel ${name}. This channel name is whitelisted`));
+
+        channelMap.set(name, json.token.user_id);
+
         return Promise.resolve({
             channel: name,
             twitchUser: user,
@@ -218,16 +216,16 @@ function validateTwitchChannel(user){
 }
 
 function validateChannel(user){
-    return fetch(`${nightBotApiBase}/channel`, user.sign({}))
+    return fetch(`${nightBotApiBase}/me`, user.sign({}))
     .then(response => response.json())
     .then(json => {
-        if(json.status !== 200 || !json.channel || !json.channel.name){
+        if(!json || !json.user || !json.user.displayName || json.user.provider !== "twitch"){
             console.log(`Please check this channel response? ${json}`);
             return Promise.reject("Cannot register channel, because the response was invalid.");
         }
         let messages = [];
 
-        let name = json.channel.name;
+        let name = json.user.displayName;
         if(!expectedChannels.some(x => name.indexOf(x) !== -1)){
             console.log(`Invalid: ${name}`);
             return Promise.reject("Cannot register channel, because the channel is not whitelisted.");
@@ -248,11 +246,20 @@ function updateChannelDb(channelInfo){
     console.log(channelInfo.user);
     let sanitizedData = {
         channel: channelInfo.channel,
-        accessToken: channelInfo.user.accessToken,
-        refreshToken: channelInfo.user.refreshToken,
-        expiresAt: channelInfo.user.expires,
-        commands: channelInfo.commands,
         updated: new Date().toISOString()
+    }
+    if(channelInfo.user){
+        sanitizedData.accessToken = channelInfo.user.accessToken;
+        sanitizedData.refreshToken = channelInfo.user.refreshToken;
+        sanitizedData.expiresAt = channelInfo.user.expires.toISOString();
+    }
+    if(channelInfo.commands){
+        sanitizedData.commands = channelInfo.commands;
+    }
+    if(channelInfo.twitchUser){
+        sanitizedData.twitchAccessToken = channelInfo.twitchUser.accessToken;
+        sanitizedData.twitchRefreshToken = channelInfo.twitchUser.refreshToken;
+        sanitizedData.twitchExpiresAt = channelInfo.twitchUser.expires.toISOString();
     }
     console.log(sanitizedData);
 
@@ -310,6 +317,19 @@ function detectCommands(channelInfo){
     });
 }
 
+function parsePlayer(entry){
+	let runner = {
+		name: entry.displayName,
+		stream: entry.publicStream,
+		discord: entry.discordTag
+	}
+
+	if(runner.stream === '')
+		runner.stream = entry.displayName;
+
+	return runner;
+}
+
 async function updateCommands(id, override){
 
     var data = {};
@@ -335,23 +355,135 @@ async function updateCommands(id, override){
             return data;
         }
 
+        //TEMP change for testing.
+        channel.name = "hancin";
 
-        var isOnline = await isTwitchChannelOnline(channel.name);
-
-        if(isOnline && !override){
+        let channelInfo = await documentClient.get({TableName: tableName, Key: {channel: channel.name}}).promise();
+        
+        if(!channelInfo.Item || !channelInfo.Item.channel || !channelInfo.Item.twitchAccessToken || !channelInfo.Item.accessToken){
             data.success = false;
-            data.needsConfirmation = true;
-            data.confirmationType = "channel-online";
+            data.errorType = "no-channel-data";
             return data;
         }
 
-        data.success = true;
-        data.episode = episode;
+
+        var [isOnline, title] = await isTwitchChannelOnline(channel.name);
+
+        if(isOnline && !override){
+            /* End-users can still update when online if the title mentions all the runners in the schedule */
+            var passedTitleCheck = true;
+            if(episode.match1 && episode.match1.players){
+                passedTitleCheck = episode.match1.players.every(x=>title.indexOf(x.displayName)!==-1);
+            }
+            if(passedTitleCheck && episode.match2 && episode.match2.players){
+                passedTitleCheck = episode.match2.players.every(x=>title.indexOf(x.displayName)!==-1);
+            }
+            if(passedTitleCheck){
+                console.log("The channel was online but the correct players were found in the title. Allowing...");
+            }else{
+                data.success = false;
+                data.needsConfirmation = true;
+                data.confirmationType = "channel-online";
+                return data;
+            }
+        }
+
+        let promises = [];
+        let players = [];
+        let commentators = [];
+        let broadcasters = [];
+        let trackers = [];
+        let variations = "";
+
+        if(episode.match1 && episode.match1.players){
+            variations = episode.match1.title;
+            players.push(...episode.match1.players.map(parsePlayer));
+        }
+        if(episode.match2){
+            players.push(...episode.match2.players.map(parsePlayer));
+        }
+        if(episode.trackers){
+            trackers.push(...episode.trackers.filter(x=>x.approved).map(parsePlayer));
+        }
+        if(episode.commentators){
+            commentators.push(...episode.commentators.filter(x=>x.approved).map(parsePlayer));
+        }
+        if(episode.broadcasters){
+            broadcasters.push(...episode.broadcasters.filter(x=>x.approved).map(parsePlayer));
+        }
+
+        console.log(channelInfo);
+        let user = nightbotAuth.createToken(channelInfo.Item.accessToken, channelInfo.Item.refreshToken, 'bearer');
+        user.expiresIn(new Date(channelInfo.Item.expiresAt));
+
+        for(let [key, value] of commandMap){
+
+
+            let actualCommand = value.replace("$(commentators)", commentators.map(x=>`twitch.tv/${x.stream}`).join(" & "))
+            .replace("$(runners)", players.map(x=>"twitch.tv/" + x.stream).join(" & "))
+            .replace("$(trackers)", trackers.map(x=>"twitch.tv/" + x.stream).join(" & "))
+            .replace("$(restreamers)", broadcasters.map(x=>"twitch.tv/" + x.stream).join(" & "))
+            .replace("$(variations)", variations);
+            console.log(channelInfo.Item.commands[key]);
+            if(channelInfo.Item.commands[key]){
+                console.log(user.sign({
+                    method: "PUT",
+                    headers: {"Content-Type": "application/x-www-form-urlencoded"},
+                    body: "message="+encodeURIComponent(actualCommand)
+                }));
+                promises.push(fetch(`${nightBotApiBase}/commands/${channelInfo.Item.commands[key]}`, user.sign({
+                    method: "PUT",
+                    headers: {"Content-Type": "application/x-www-form-urlencoded"},
+                    body: "message="+encodeURIComponent(actualCommand)
+                })));
+            }else{
+                console.log('Not updating command because it doesn\'t exist', key)
+            }
+
+        }
+
+        let twitchUser = twitchAuth.createToken(channelInfo.Item.twitchAccessToken, channelInfo.Item.twitchRefreshToken, 'bearer');
+        twitchUser.expiresIn(new Date(channelInfo.Item.twitchexpiresAt));
+        console.log(updateForTwitch(twitchUser.sign({
+            method: 'PUT',
+            headers: {"Content-Type": "application/x-www-form-urlencoded", ...twitchHeaders},
+            body: "status=" + encodeURIComponent(titleTemplate.replace("$(runnerNames)", players.map(x=>x.name).join(" vs ")).replace("$(name)", episode.event.name))
+        })));
+        promises.push(fetch(`https://api.twitch.tv/kraken/channels/${channelMap.get(channel.name)}`, 
+            updateForTwitch(twitchUser.sign({
+                method: 'PUT',
+                headers: {"Content-Type": "application/x-www-form-urlencoded", ...twitchHeaders},
+                body: "channel[status]=" + encodeURIComponent(titleTemplate.replace("$(runnerNames)", players.map(x=>x.name).join(" vs ")).replace("$(name)", episode.event.name))
+            }))
+        ));
+
+        try{
+            var results = await Promise.all(promises);
+            var succeeded = results.every(r=>r.status===200);
+            var actualInfo = await Promise.all(results.map(x=>x.json()));
+            console.log(actualInfo);
+
+            if(succeeded){
+                data.success = true;
+                data.episode = episode;
+            }else{
+                data.success = false;
+                data.errorType = "update-error";
+                console.log('Error updating channels, responses:', results);
+            }
+            
+        } catch (e){
+            console.log('Error updating channels, responses:', e.stack);
+        }
+
     }
     catch(e){
         if(e === 404 || e.error){
             data.success = false;
             data.errorType = "not-found";
+        }else{
+            data.success = false;
+            data.errorType = "unknown. " + e.stack;
         }
     }
 
@@ -377,6 +509,11 @@ function fetchEpisode(id){
 }
 
 app.get('/channels', function (req, res){
+    documentClient.scan({TableName: tableName}).promise()
+    .then(data=>{
+        console.log(data.Items);
+        return res.send("List obtained and put in console.");
+    });
 });
 
 
@@ -420,18 +557,13 @@ self.on("message", async message => {
     const args = message.content.slice(config.prefix.length).trim().split(/ +/g);
     const command = args.shift().toLowerCase();
 
-    if (command === "ping") {
-        // Calculates ping between sending a message and editing it, giving a nice round-trip latency.
-        // The second ping is an average latency between the bot and the websocket server (one-way, not round-trip)
-        const m = await message.channel.send("Ping?");
-        m.edit(`Pong! Latency is ${m.createdTimestamp - message.createdTimestamp}ms. API Latency is ${Math.round(self.ping)}ms`);
-    }
-
-    if(command === "commands") {
-        if(!message.member.roles.some(n=>n.name === "Admins") && !message.member.roles.some(n=>n.name === "Mods")){
+    if(command === "commands" || command === "confirmcommands") {
+        if(!message.member.roles.some(n=>n.name === "Admins") //Admins - always allowed
+        && !message.member.roles.some(n=>n.name === "Mods")  //Mods - always allowed
+        && !(message.member.roles.some(n=>n.name === "Restreamers") && command === "commands")){ //Restreamers - allow the non-override version only
             message.react('📛');
         }else{
-            const result = await updateCommands(args[0], false);
+            const result = await updateCommands(args[0], command === "confirmcommands");
     
             if(result.success){
                 message.react('✅');
@@ -447,14 +579,28 @@ self.on("message", async message => {
                 }
             }else{
                 message.react('❌');
-                if(result.errorType === "not-found"){
-                    await message.channel.send(`Could not find episode ${args[0]}.`);
-                }else if(result.errorType === "invalid-channel"){
-                    await message.channel.send(`Cannot update commands because this bot cannot update the channel. Please notify the moderators if this is an error.`);
-                }else if(result.errorType === "not-approved"){
-                    await message.channel.send(`This match has not been approved. Please notify the moderators if this is an error.`);
-                }else if(result.errorType === "no-channel"){
-                    await message.channel.send(`This match does not have a broadcast channel. Please notify the moderators if this is an error.`);
+                switch(result.errorType){
+                    case "not-found":
+                        await message.channel.send(`Could not find episode ${args[0]}.`);
+                        break;
+                    case "invalid-channel":
+                        await message.channel.send(`Cannot update commands because this bot cannot update the channel. Please notify the moderators if this is an error.`);
+                        break;
+                    case "not-approved":
+                        await message.channel.send(`This match has not been approved. Please notify the moderators if this is an error.`);
+                        break;
+                    case "no-channel":
+                        await message.channel.send(`This match does not have a broadcast channel. Please notify the moderators if this is an error.`);
+                        break;
+                    case "no-channel-data":
+                        await message.channel.send(`I cannot update this channel yet. Please notify the moderators if this is an error.`);
+                        break;
+                    case "update-error":
+                        	await message.channel.send(`I cannot update the channel due to an API error. Please contact the moderators.`);
+                        break;
+                    default:
+                        await message.channel.send(`Could not complete due to an error: ${result.errorType}`);
+                        break;
                 }
             }
         }
