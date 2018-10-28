@@ -12,6 +12,7 @@ const clientOAuth2 = require('client-oauth2');
 const AWS = require('aws-sdk');
 const moment = require('moment');
 
+
 const tableName = process.env.TABLE_NAME || "TrackedChannels"
 
 AWS.config.update({

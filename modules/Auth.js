@@ -20,25 +20,32 @@ exports.TwitchChannel = class TwitchChannel{
         }else{
             this.channelLower = data.channel;
         }
-        this.channelId = data.channelId;
+        
         if(data.token){
-            this.token = token;
+            this.token = data.token;
         }else{
             this.token = twitchAuth.createToken(data.twitchAccessToken, data.twitchRefreshToken, 'bearer');
             this.token.expiresIn(new Date(data.twitchExpiresAt))
         }
+
     }
 
     static async sendTwitchRequest(url, options = {}){
-        const mergedOptions = Object.assign({},{
-            headers: {
+        const mergedOptions = Object.assign({}, options);
+        if(options.headers){
+            mergedOptions.headers = Object.assign({}, {
                 "Client-ID": config.twitch.clientId, 
                 "Accept": "application/vnd.twitchtv.v5+json"
-            },
-        }, options);
+            }, options.headers);
+        }else{
+            mergedOptions.headers = {
+                "Client-ID": config.twitch.clientId, 
+                "Accept": "application/vnd.twitchtv.v5+json"
+            };
+        }
 
         if(mergedOptions.headers.Authorization)
-            params.headers['Authorization'] = params.headers['Authorization'].replace('Bearer', 'OAuth');
+            mergedOptions.headers['Authorization'] = mergedOptions.headers['Authorization'].replace('Bearer', 'OAuth');
 
         let response = await fetch(config.twitch.api + url, mergedOptions);
         let content = await response.json();
@@ -66,27 +73,37 @@ exports.TwitchChannel = class TwitchChannel{
             }
 
             let channelName = twitchInfo.content.token.user_name;
-            let channelId = twitchInfo.content.token.user_id;
-            channelMap.set(channelName, channelId);
 
             return new TwitchChannel({
                 channel: channelName,
-                channelId: channelId,
                 token: token
             }, client);
 
         } catch (err){
             const errorMsg = err.stack.replace(new RegExp(`${__dirname}/`, "g"), "./");
-            client.logger.error(`Error while refreshing token: ${errorMsg}`);
+            this.client.logger.error(`Error while refreshing token: ${errorMsg}`);
             return null;
         }
     }
 
     static async getTwitchChannelIds(users) {
-        let result = await this.sendTwitchRequest("/users?login="+users.join(","));
-        return result.content.map(item => {
+        let result = await TwitchChannel.sendTwitchRequest("/users?login="+users.join(","));
+        if(!result || !result.content || !result.content.users)
+            return [];
+
+        return result.content.users.map(item => {
             return {name: item.display_name, id: item._id};
         });
+    }
+
+    save() {
+        return {
+            channel: this.channel,
+            twitchId: this.channelId,
+            twitchAccessToken: this.token.accessToken,
+            twitchRefreshToken: this.token.refreshToken,
+            twitchExpiresAt: this.token.expires.toISOString()
+        }
     }
 
     needsRefresh() {
@@ -98,7 +115,7 @@ exports.TwitchChannel = class TwitchChannel{
             this.token = await this.token.refresh({body: {"client_id": config.twitch.clientId, "client_secret": config.twitch.clientSecret}});
         } catch (err){
             const errorMsg = err.stack.replace(new RegExp(`${__dirname}/`, "g"), "./");
-            client.logger.error(`Error while refreshing token: ${errorMsg}`);
+            this.client.logger.error(`Error while refreshing token: ${errorMsg}`);
         }
 
         return this.token;
@@ -109,11 +126,16 @@ exports.TwitchChannel = class TwitchChannel{
     */
     async ensureHasId(){
         if(!this.channelId){
-            if(channelMap.has(this.channel)){
+            if(channelMap.has(this.channel) && channelMap[this.channel]){
                 this.channelId = channelMap.get(this.channel);
             }else{
-                let maps = await getTwitchChannelIds([this.channel]);
-                channelMap.set(maps.name, maps.id);
+                let maps = await TwitchChannel.getTwitchChannelIds([this.channel]);
+                if(maps.length > 0){
+                    channelMap.set(maps[0].name, maps[0].id);
+                    this.channelId = maps[0].id;
+                }else{
+                    this.client.logger.warn(`Could not find channel id for ${this.channel}, please verify`);
+                }
             }
         }
     }
@@ -123,16 +145,16 @@ exports.TwitchChannel = class TwitchChannel{
         try{
             await this.ensureHasId();
 
-            let streamInfo = await sendTwitchRequest("/streams/" + this.channelId)
+            let streamInfo = await TwitchChannel.sendTwitchRequest("/streams/" + this.channelId)
 
-            let isOnline = streamInfo.content !== null;
-            let title = isOnline ? streamInfo.content.channel.status : null;
+            let isOnline = streamInfo.content.stream !== null;
+            let title = isOnline ? streamInfo.content.stream.channel.status : null;
 
             return [isOnline, title];
 
         } catch (err){
             const errorMsg = err.stack.replace(new RegExp(`${__dirname}/`, "g"), "./");
-            client.logger.error(`Error while getting online status: ${errorMsg}`);
+            this.client.logger.error(`Error while getting online status: ${errorMsg}`);
             return [false, null];
         }
 
@@ -142,17 +164,17 @@ exports.TwitchChannel = class TwitchChannel{
         try{
             await this.ensureHasId();
 
-            let streamInfo = await sendTwitchRequest("/channels/" + this.channelId, this.token.sign({
+            let streamInfo = await TwitchChannel.sendTwitchRequest("/channels/" + this.channelId, this.token.sign({
                 method: 'PUT',
                 headers: {"Content-Type": "application/x-www-form-urlencoded"},
                 body: `channel[status]=${encodeURIComponent(title)}`
             }));
             
-            return streamInfo.content.channel.status === title;
+            return streamInfo.content.status === title;
 
         } catch (err){
             const errorMsg = err.stack.replace(new RegExp(`${__dirname}/`, "g"), "./");
-            client.logger.error(`Error while obtaining twitch token: ${errorMsg}`);
+            this.client.logger.error(`Error while setting twitch title: ${errorMsg}`);
             return false;
         }
     }
@@ -163,12 +185,17 @@ exports.NightbotChannel = class NightbotChannel{
     constructor(data, client){
         this.client = client;
         this.channel = data.channel;
+        if(data.channel){
+            this.channelLower = data.channel.toLowerCase();
+        }else{
+            this.channelLower = data.channel;
+        }
         this.channelId = data.channelId;
         if(data.token){
-            this.token = token;
+            this.token = data.token;
         }else{
-            this.token = nightbotAuth.createToken(data.accessToken, data.refreshToken, 'bearer');
-            this.token.expiresIn(new Date(data.expiresAt));
+            this.token = nightbotAuth.createToken(data.nightbotAccessToken, data.nightbotRefreshToken, 'bearer');
+            this.token.expiresIn(new Date(data.nightbotExpiresAt));
         }
         this.commands = new Map();
     }
@@ -187,14 +214,41 @@ exports.NightbotChannel = class NightbotChannel{
         return nightbotAuth.code.getUri();
     }
 
-    static async completeLogin(url) {
+    static async completeLogin(url, client) {
         try{
-            return await nightbotAuth.code.getToken(url);
+            let token = await nightbotAuth.code.getToken(url);
+            let nightbotInfo = await this.sendNightbotRequest("/me", token.sign({}));
+
+            if(!(nightbotInfo 
+                && nightbotInfo.content
+                && nightbotInfo.content.user 
+                && nightbotInfo.content.user.displayName)){
+                    client.logger.error(`Token error ${nightbotInfo}`);
+                    return null;
+            }
+            let channelName = nightbotInfo.content.user.displayName;
+            let channelId = nightbotInfo.content.user._id;
+
+            return new NightbotChannel({
+                channel: channelName,
+                channelId, channelId,
+                token: token
+            }, client);
 
         } catch (err){
             const errorMsg = err.stack.replace(new RegExp(`${__dirname}/`, "g"), "./");
             client.logger.error(`Error while obtaining nightbot token: ${errorMsg}`);
             return null;
+        }
+    }
+
+    save() {
+        return {
+            channel: this.channel,
+            nightbotId: this.channelId,
+            nightbotAccessToken: this.token.accessToken,
+            nightbotRefreshToken: this.token.refreshToken,
+            nightbotExpiresAt: this.token.expires.toISOString()
         }
     }
 
@@ -215,8 +269,8 @@ exports.NightbotChannel = class NightbotChannel{
 
     async ensureHasCommands() {
         try{
-            if(!this.commands || this.commands.length === 0){
-                let nbData = await this.sendNightbotRequest("/commands", this.token.sign({}));
+            if(!this.commands || this.commands.size === 0){
+                let nbData = await NightbotChannel.sendNightbotRequest("/commands", this.token.sign({}));
 
                 nbData.content.commands.forEach(command =>{
                     this.commands.set(command.name, command._id);
@@ -237,21 +291,21 @@ exports.NightbotChannel = class NightbotChannel{
             await this.ensureHasCommands();
 
             if(!this.commands.has(name)){
-                client.logger.error(`Command ${name} not present on channel ${this.channel}.`);
+                this.client.logger.error(`Command ${name} not present on channel ${this.channel}.`);
                 return false;
             }
             let id = this.commands.get(name);
 
-            let nbData = await this.sendNightbotRequest(`/commands/${id}`, this.token.sign({
+            let nbData = await NightbotChannel.sendNightbotRequest(`/commands/${id}`, this.token.sign({
                 method: 'PUT',
                 headers: {"Content-Type": "application/x-www-form-urlencoded"},
                 body: `message=${encodeURIComponent(message)}`
             }));
 
-            return nbData.content && nbData.content.message && nbData.content.command.message === message;
+            return nbData.content && nbData.content.command && nbData.content.command.message === message;
         } catch (err){
             const errorMsg = err.stack.replace(new RegExp(`${__dirname}/`, "g"), "./");
-            client.logger.error(`Error while obtaining nightbot command list: ${errorMsg}`);
+            this.client.logger.error(`Error while obtaining nightbot command list: ${errorMsg}`);
             return false;
         }
     }

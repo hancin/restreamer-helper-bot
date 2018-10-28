@@ -1,5 +1,7 @@
-module.exports = (client) => {
+const db = require('./Database');
 
+module.exports = (client) => {
+    client.db = db;
     /*
     PERMISSION LEVEL FUNCTION
     This is a very basic permission system for commands which uses "levels"
