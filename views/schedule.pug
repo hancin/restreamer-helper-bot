@@ -1,0 +1,72 @@
+html
+    head
+        title= title
+        link(href="/vis/vis-timeline-graph2d.min.css", rel="stylesheet")
+    body
+        h1= title
+        script(src='https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.22.2/moment.min.js')
+        script(src='/vis/vis.js')
+        div(id="container")
+        script.
+            var dataSets = {
+                sg: !{JSON.stringify(sgEp)},
+                alttpr: !{JSON.stringify(alttprEp)},
+                other: !{JSON.stringify(otherEp)}
+            };
+            var container = document.getElementById("container");
+            var data = [
+                ...dataSets.sg.map(
+                    function(item){
+                        return {
+                            id: item.id,
+                            group: 1,
+                            content: item.playerInfo.nameText,
+                            start: moment(item.when).format(),
+                            end: moment(item.when).add(item.length, 'minutes').format()
+                        };
+                    }
+                ),
+                ...dataSets.alttpr.map(
+                    function(item){
+                        return {
+                            id: item.id,
+                            group: 2,
+                            content: item.playerInfo.nameText,
+                            start: moment(item.when).format(),
+                            end: moment(item.when).add(item.length, 'minutes').format()
+                        };
+                    }
+                ),
+                ...dataSets.other.map(
+                    function(item){
+                        return {
+                            id: item.id,
+                            group: 3,
+                            content: item.playerInfo.nameText,
+                            start: moment(item.when).format(),
+                            end: moment(item.when).add(item.length, 'minutes').format()
+                        };
+                    }
+                )
+            ]
+            var groups = [
+                {
+                    id: 1,
+                    content: "SpeedGaming matches"
+                },
+                {
+                    id: 2,
+                    content: "ALTTPRandomizer matches"
+                },
+                {
+                    id: 3,
+                    content: "Other matches"
+                }
+            ];
+            var items = new vis.DataSet(data);
+            var options = {};
+            var timeline = new vis.Timeline(container);
+            timeline.setOptions(options);
+            timeline.setGroups(groups);
+            timeline.setItems(items);
+
