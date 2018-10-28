@@ -54,7 +54,7 @@ const nightBotApiBase = "https://api.nightbot.tv/1";
 const commandMap = new Map([
     ['!c', 'Thanks to our volunteers! Commentary: $(commentators) // Tracking: $(trackers) // Restream: $(restreamers)'],
     ['!r', 'Enjoying the race? Follow the runners! $(runners)'],
-    ['!mode', 'The settings for this match are $(variations). See more information on these settings at https://alttpr.com/options !'],
+    ['!mode', 'The settings for this match are $(variations). See more information on these settings at https://alttpr.com/options ! Find out what the symbols mean at https://i.imgur.com/cec8yKj.png'],
 ]);
 let titleTemplate = "$(name). $(runnerNames). !alttpr for info, !mode for settings";
 
@@ -83,9 +83,6 @@ var expectedChannels = ['hancin', 'alttprandomizer'];
 
 var overrideChannels = ["ALTTPRandomizer", "ALTTPRandomizer2", "ALTTPRandomizer3", "ALTTPRandomizer4", "ALTTPRandomizer5"];
 
-
-// TODO: Actually save the tokens from the auth workflow
-var nightbotUserToken = null;
 
 let channelMap = new Map();
 
@@ -336,7 +333,6 @@ function updateChannelDb(channelInfo){
     .then(data =>{
         log(channelInfo.messages, `Channel ${channelData.channel} added to DB.`);
 
-        nightbotUserToken = channelInfo.user;
         return Promise.resolve(channelInfo);
     });
 
