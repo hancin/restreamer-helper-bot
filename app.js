@@ -10,6 +10,7 @@ const { promisify } = require("util");
 const readdir = promisify(require("fs").readdir);
 const Enmap = require("enmap");
 const webHandler = require('./modules/WebHandler');
+const cronHandler = require('./modules/ScheduledTasks');
 
 // This is your client. Some people call it `bot`, some people call it `self`,
 // some might call it `cootchie`. Either way, when you see `client.something`,
@@ -67,6 +68,7 @@ const init = async () => {
 
   
     webHandler(client);
+    cronHandler(client);
 
   // End top-level async/await function.
   };

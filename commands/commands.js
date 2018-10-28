@@ -196,12 +196,12 @@ exports.run = async (client, message, args, level) => {// eslint-disable-line no
     enabled: true,
     guildOnly: true,
     aliases: [],
-    permLevel: "Moderators"
+    permLevel: "Moderator"
   };
   
   exports.help = {
     name: "commands",
-    category: "Restreamer Tools",
+    category: "Restreaming",
     description: "Sets the required commands on one of the alttp channels for the specified episode.",
     usage: "commands <episodeID> <force>"
   };

@@ -65,14 +65,14 @@ exports.run = async (client, message, args, level) => {// eslint-disable-line no
   
   exports.conf = {
     enabled: true,
-    guildOnly: true,
+    guildOnly: false,
     aliases: [],
-    permLevel: "Moderators"
+    permLevel: "Moderator"
   };
   
   exports.help = {
     name: "schedule",
-    category: "Miscellaneous",
+    category: "Restreaming",
     description: "Shows the published ALTTPR schedule for the specified date.",
     usage: "schedule <yesterday/today/tomorrow/YYYY-MM-DD> <alttpr/sg/all>"
   };
