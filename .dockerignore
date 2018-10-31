@@ -1,0 +1,7 @@
+node_modules
+cfg
+.git
+data
+server.cert
+server.key
+.vscode
