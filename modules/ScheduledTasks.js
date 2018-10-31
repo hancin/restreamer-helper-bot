@@ -5,7 +5,7 @@ async function refresh(client){
 
     channels.forEach(async channel => {
         client.logger.debug("Doing a scheduled token refresh....");
-        if(channel.twitchId){
+        if(channel.twitchRefreshToken){
             let twitch = new TwitchChannel(channel, client);
             if(twitch.needsRefresh()){
                 client.logger.debug("Updating twitch token for " + channel.channel);
@@ -14,7 +14,7 @@ async function refresh(client){
 
             }
         }
-        if(channel.nightbotId){
+        if(channel.nightbotRefreshToken){
             let nightbot = new NightbotChannel(channel, client);
             if(nightbot.needsRefresh()){
                 client.logger.debug("Updating nightbot token for " + channel.channel);

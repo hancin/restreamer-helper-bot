@@ -48,7 +48,7 @@ async function updateCommands(id, override, client, sg){
         episode.channelName = "hancin";
 
         let channelInfo = await client.db.channelGet(episode.channelName);
-        if(!channelInfo || !channelInfo.twitchId || !channelInfo.nightbotId){
+        if(!channelInfo || !channelInfo.twitchAccessToken || !channelInfo.nightbotAccessToken){
             data.success = false;
             data.errorType = "no-channel-data";
             return data;
