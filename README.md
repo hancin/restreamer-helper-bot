@@ -7,3 +7,5 @@ and a few QoL commands for easier maintenance.
 
 To make this work on your system, you'll need a config.js file full with the client tokens for all relevant services and you'll likely need
 to change the code so it accepts your channels.
+
+All settings are stored in sqlite databases (the guild settings through Enmap, the token settings through a raw database that will be created automatically for you).
