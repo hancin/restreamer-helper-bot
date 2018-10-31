@@ -1,5 +1,4 @@
-config.json
-config.js
+cfg/
 data/
 # Logs
 logs
