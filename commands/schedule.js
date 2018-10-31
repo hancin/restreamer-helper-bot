@@ -8,6 +8,11 @@ exports.run = async (client, message, args, level) => {// eslint-disable-line no
         let baseTime = args[0] || "today";
         let target = args[1] || "alttpr";
 
+        if(args[0] === "needs"){
+            baseTime = "today";
+            target = "needs";
+        }
+
 
         if(target != "alttpr" && target != "all" && target != "sg" && target !== "needs"){
             target = "alttpr";
@@ -38,6 +43,7 @@ exports.run = async (client, message, args, level) => {// eslint-disable-line no
             selected = sg.filteredDisplayedMatches(list);
         }
         let fields = [];
+        let description = (target === "needs") ? "Check below to see what crew we currently need!" : "Here's what we know about the schedule so far.";
         
         if(target !== "needs"){
             fields = selected.map(x=> { return {
@@ -93,7 +99,7 @@ exports.run = async (client, message, args, level) => {// eslint-disable-line no
                 icon_url: client.user.avatarURL
             },
             title: `Schedule information for ${moment(baseTime).format('ll')}`,
-            description: "Here's what we know about the schedule so far.",
+            description: description,
             fields: fields
         }});
     }catch(err){
