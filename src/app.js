@@ -47,7 +47,7 @@ const init = async () => {
     evtFiles.forEach(file => {
       const eventName = file.split(".")[0];
       client.logger.log(`Loading Event: ${eventName}`);
-      const event = require(`./src/events/${file}`);
+      const event = require(`./events/${file}`);
       // Bind the client to any event, before the existing arguments
       // provided by the discord.js event. 
       // This line is awesome by the way. Just sayin'.
