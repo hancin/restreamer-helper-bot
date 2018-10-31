@@ -17,7 +17,7 @@ const cronHandler = require('./modules/ScheduledTasks');
 // or `bot.something`, this is what we're refering to. Your client.
 const client = new Discord.Client();
 
-client.config = require("./config.js");
+client.config = require("../cfg/config.js");
 client.logger = require("./modules/Logger");
 
 

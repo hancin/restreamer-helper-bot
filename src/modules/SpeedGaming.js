@@ -99,7 +99,7 @@ module.exports = (client) => {
             let episodes = await sendSGRequest(`/schedule?from=${from}&to=${to}&event=${event}`)
     
             if(!episodes.content || episodes.content.error){
-                client.logger.debug("Error while retrieving episode:"+ episodes.content.error);
+                client.logger.debug("Error while retrieving episodes:"+ episodes.content.error);
                 return [];
             }
     

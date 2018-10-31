@@ -1,4 +1,4 @@
-const config = require('../config.js');
+const config = require('../../cfg/config.js');
 const clientOAuth2 = require('client-oauth2');
 const moment = require('moment');
 const Enmap = require('enmap');
