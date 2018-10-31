@@ -120,13 +120,20 @@ module.exports = (client) => {
         }
 
     });
-        
-    https.createServer({
-        key: fs.readFileSync('./server.key'),
-        cert: fs.readFileSync('./server.cert')
-    }, app)
-    .listen(3000, function(){
-        client.logger.log('Server operating at https://localhost:3000/.');
-    });
 
+    if(app.get('env') === "development"){
+        https.createServer({
+            key: fs.readFileSync('./server.key'),
+            cert: fs.readFileSync('./server.cert')
+        }, app)
+        .listen(3000, function(){
+            client.logger.log('Server operating at https://localhost:3000/.');
+        });
+    
+    }else{
+        app.listen(3000, function(){
+            client.logger.log('Server operating at http://localhost:3000/.');
+        });
+    }
+        
 }
