@@ -1,3 +1,3 @@
 #!/bin/bash
 echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
-docker push hancin/restream-helper-bot:latest
+docker push hancin/restreamer-helper-bot
