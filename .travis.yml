@@ -1,15 +1,12 @@
 sudo: required
-language: node_js
-node_js:
-  - "lts/*"
+language: generic
+
 services:
   - docker
 
-before_install:
-  - docker build -t hancin/restreamer-helper-bot .
-
 script:
-  - echo 1
+  - docker build -t restreamer-helper-bot .
+  - docker tag restreamer-helper-bot hancin/restreamer-helper-bot:latest
 
 deploy:
   provider: script
