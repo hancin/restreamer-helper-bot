@@ -44,8 +44,6 @@ async function updateCommands(id, override, client, sg){
             data.errorType = "invalid-channel";
             return data;
         }
-        //TEMP change for testing.
-        episode.channelName = "hancin";
 
         let channelInfo = await client.db.channelGet(episode.channelName);
         if(!channelInfo || !channelInfo.twitchAccessToken || !channelInfo.nightbotAccessToken){
@@ -140,9 +138,9 @@ async function updateCommands(id, override, client, sg){
 exports.run = async (client, message, args, level) => {// eslint-disable-line no-unused-vars
     let sg = sgPre(client);
     
-    let override = args[1] === "force" && level >= 3;
+    let override = args[1] === "force" && level >= 2;
 
-    if(args[1] && level < 3){
+    if(args[1] === "force" && level < 2){
         message.react('📛');
         return;
     }
@@ -196,7 +194,7 @@ exports.run = async (client, message, args, level) => {// eslint-disable-line no
     enabled: true,
     guildOnly: true,
     aliases: [],
-    permLevel: "Moderator"
+    permLevel: "Power User"
   };
   
   exports.help = {
