@@ -176,10 +176,6 @@ ${showRestreamers(x,2,expectedCrew)} _${x.variations}_`
 
         msg.edit({embed: {
             color: 0xFFF0E0,
-            author: {
-                name: client.user.username,
-                icon_url: client.user.avatarURL
-            },
             title: `Schedule information for ${moment(baseTime).format('ll')}`,
             description: description,
             fields: fields
