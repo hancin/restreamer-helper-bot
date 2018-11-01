@@ -4,6 +4,58 @@ const dbPromise = Promise.resolve()
     .then(() => sqlite.open('./data/db.sqlite', { Promise }))
     .then(db => db.migrate({}));
 
+
+exports.scheduledIntervalList = async (pk) => {
+    const db = await dbPromise;
+    const channelInfo = await db.all('SELECT * FROM ScheduleInterval');
+
+    return channelInfo;
+}
+exports.scheduledIntervalGet = async (pk) => {
+    const db = await dbPromise;
+    const channelInfo = await db.get('SELECT * FROM ScheduleInterval WHERE messageId = ?', pk);
+
+    return channelInfo;
+}
+exports.scheduledIntervalRemove = async (pk) => {
+    const db = await dbPromise;
+    await db.run('DELETE FROM ScheduleInterval WHERE messageId = ?', pk);
+}
+
+exports.scheduledIntervalPut = async (pk, data) => {
+    const db = await dbPromise;
+
+    await db.run(`REPLACE INTO ScheduleInterval(messageId,
+        guild,
+        channelName,
+        created,
+        updated,
+        requester,
+        requesterMessageId,
+        commandsArgs) VALUES(?,?,?,?,?,?,?,?)`, 
+        pk, 
+        data.guild,
+        data.channelName,
+        data.created, 
+        data.updated,
+        data.requester,
+        data.requesterMessageId,
+        data.commandsArgs);
+};
+exports.scheduledIntervalNew = () => {
+    return {
+        created: new Date().toISOString(),
+        updated: new Date().toISOString(),
+        messageId: "",
+        guild: "",
+        channelName: "",
+        requester: "",
+        requesterMessageId: "",
+        commandsArgs: ""
+    }
+}
+
+
 exports.channelList = async () => {
     const db = await dbPromise;
     const channelInfo = await db.all('SELECT * FROM ChannelInfo');
@@ -13,7 +65,7 @@ exports.channelList = async () => {
 
 exports.channelGet = async (pk) => {
     const db = await dbPromise;
-    const channelInfo = db.get('SELECT * FROM ChannelInfo WHERE channel = ?', pk);
+    const channelInfo = await db.get('SELECT * FROM ChannelInfo WHERE channel = ?', pk);
 
     return channelInfo;
 };

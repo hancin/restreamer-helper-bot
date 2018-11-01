@@ -62,10 +62,7 @@ const init = async () => {
     }
   
     // Here we login the client.
-    client.login(client.config.token);
-
-    await client.db.channelList();
-
+    await client.login(client.config.token);
   
     webHandler(client);
     cronHandler(client);

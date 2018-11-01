@@ -24,6 +24,20 @@ async function refresh(client){
             }
         }
     });
+
+    client.logger.debug("Doing a scheduled interval refresh ....");
+
+    let scheduleUpdates = await client.db.scheduledIntervalList();
+
+    scheduleUpdates.forEach(async update => {
+        client.logger.debug(`Updating message ${update.messageId}...`)
+        try{
+            const scheduleCommand = client.commands.get("schedule");
+            await scheduleCommand.run(client, [update.guild, update.channelName, update.messageId], update.commandsArgs.split(' '), 3);
+        } catch(err){
+            client.logger.error("Error while processing update: "+err.stack);
+        }
+    });
 }
 module.exports = async (client) => {
     refresh(client);
