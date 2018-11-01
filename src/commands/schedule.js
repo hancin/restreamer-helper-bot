@@ -131,9 +131,9 @@ exports.run = async (client, message, [baseTime, target, messageID], level) => {
                 return {
                     name: `**${moment(x.when).format('LT')}** | __${x.playerInfo.nameText}__`,
                     value: `ID: ${x.id} | [${x.channelName}](https://twitch.tv/${x.channelName})
-                    Commentators: ${x.crews[0].value.map(c=>c.discord).join(', ')} ${crewExtra(x,0,expectedCrew)}
-                    Trackers: ${x.crews[1].value.map(c=>c.discord).join(', ')} ${crewExtra(x,1,expectedCrew)}
-                    ${showRestreamers(x,2,expectedCrew)} _${x.variations}_`
+Commentators: ${x.crews[0].value.map(c=>c.discord).join(', ')} ${crewExtra(x,0,expectedCrew)}
+Trackers: ${x.crews[1].value.map(c=>c.discord).join(', ')} ${crewExtra(x,1,expectedCrew)}
+${showRestreamers(x,2,expectedCrew)} _${x.variations}_`
                 }
             });
         } else {
