@@ -12,7 +12,7 @@ const whitelistedChannelPatterns = ["hanci", "alttprandomizer"];
 
 module.exports = (client) => {
     const sg = sgPre(client);
-    app.use(express.static('public'));
+    app.use(express.static('src/public'));
     app.set("view engine", "pug");
     app.get('/schedule/:when', async (req, res) => {
 
