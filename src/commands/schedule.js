@@ -6,7 +6,7 @@ exports.run = async (client, message, args, level) => {// eslint-disable-line no
         let sg = sgPre(client);
         const msg = await message.reply("Building schedule, please wait....");
         let baseTime = args[0] || "today";
-        let target = args[1] || "alttpr";
+        let target = args[1] || "all";
 
         if(args[0] === "needs"){
             baseTime = "today";
@@ -15,7 +15,7 @@ exports.run = async (client, message, args, level) => {// eslint-disable-line no
 
 
         if(target != "alttpr" && target != "all" && target != "sg" && target !== "needs"){
-            target = "alttpr";
+            target = "all";
         }
         if(baseTime && baseTime.toLowerCase() == "yesterday"){
             baseTime = moment().subtract(1, "day").startOf('day').format();
