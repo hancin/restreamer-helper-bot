@@ -26,7 +26,7 @@ exports.run = async (client, message, args, level) => {// eslint-disable-line no
     try{
         let sg = sgPre(client);
         let baseTime = args[0] || "today";
-        let target = args[1] || "alttpr";
+        let target = args[1] || "all";
         let messageID = args[2] || null;
 
         let msg;
@@ -48,7 +48,7 @@ exports.run = async (client, message, args, level) => {// eslint-disable-line no
 
 
         if(target != "alttpr" && target != "all" && target != "sg" && target !== "needs"){
-            target = "alttpr";
+            target = "all";
         }
         if(baseTime && baseTime.toLowerCase() == "yesterday"){
             baseTime = moment().subtract(1, "day").startOf('day').format();
