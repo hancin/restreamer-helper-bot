@@ -22,32 +22,70 @@ function crewExtra(x,i,expectedCrew){
 
     return text;
 }
-exports.run = async (client, message, args, level) => {// eslint-disable-line no-unused-vars
-    try{
-        let sg = sgPre(client);
-        let baseTime = args[0] || "today";
-        let target = args[1] || "all";
-        let messageID = args[2] || null;
+exports.run = async (client, message, [baseTime, target, messageID], level) => {// eslint-disable-line no-unused-vars
+    
+    if(!baseTime){
+        baseTime = "today";
+    }
+    if(!target){
+        target = "all";
+    }
 
+    if(messageID && level < 3){
+        message.react("📛");
+        return;
+    }
+
+    let doReacts = false;
+    try{
         let msg;
-        if(messageID !== null){
-            msg = await message.channel.fetchMessage(messageID);
-            if(msg === null || msg.author.id !== client.user.id){
-                await message.react('❌');
+
+        if(message.length && message.length === 3){
+            let guild = client.guilds.get(message[0]);
+            if(!guild){
+                client.logger.error("Could not find guild "+message[0]);
                 return;
             }
+
+            let channel = guild.channels.get(message[1]);
+            if(!channel){
+                client.logger.error("Could not find channel "+message[1]);
+                return;
+            }
+
+            msg = await channel.fetchMessage(message[2]);
+            if(!msg || msg.author.id !== client.user.id){
+                client.logger.error("Could not find message or no permissions "+message[2]);
+                return;
+            }
+
         }else{
-            
+            doReacts = true;
+        }
+
+        let sg = sgPre(client);
+
+        if(messageID){
+            msg = await message.channel.fetchMessage(messageID);
+            if(msg === null || msg.author.id !== client.user.id){
+                if(doReacts)
+                    await message.react('❌');
+                else
+                    client.logger.error("Could not fetch message "+messageID);
+                return;
+            }
+
+        }else if(!msg){
             msg = await message.reply("Building schedule, please wait....");
         }
 
-        if(args[0] === "needs"){
+        if(baseTime === "needs"){
             baseTime = "today";
             target = "needs";
         }
 
 
-        if(target != "alttpr" && target != "all" && target != "sg" && target !== "needs"){
+        if(target != "alttpr" && target != "all" && target != "sg" && target !== "needs" && target !== "full"){
             target = "all";
         }
         if(baseTime && baseTime.toLowerCase() == "yesterday"){
@@ -60,7 +98,7 @@ exports.run = async (client, message, args, level) => {// eslint-disable-line no
             baseTime = moment().add(1, "day").startOf("day").format();
         }
         if(!moment(baseTime).isValid()){
-            baseTime = null;
+            baseTime = moment().startOf('day').format();
         }
 
 
@@ -72,11 +110,18 @@ exports.run = async (client, message, args, level) => {// eslint-disable-line no
             selected = sg.filterSgMatches(list);
         }else if(target === "alttpr"){
             selected = sg.filterAlttprMatches(list);
-        }else if(target === "all" || target === "needs"){
+        }else if(target === "all" || target === "needs" || target === "full"){
             selected = sg.filteredDisplayedMatches(list);
         }
+
+        let now = moment();
+        
+        if(target !== "full"){
+            selected = selected.filter(x=>moment(x.when).isAfter(now));
+        }
+
         let fields = [];
-        let description = (target === "needs") ? "Check below to see what crew we currently need!" : "Here's what we know about the schedule so far.";
+        let description = (target === "needs") ? "Check below to see what crew we currently need!" : "Here's what we found on the schedule.";
 
         description += `  __(Updated ${moment().format('ddd, hh:mmA')})__`;
         
@@ -140,11 +185,15 @@ exports.run = async (client, message, args, level) => {// eslint-disable-line no
             fields: fields
         }});
 
-        if(messageID !== null){
+        if(messageID && doReacts){
             message.react('✅');
         }
     }catch(err){
-        await message.reply("An error occured while loading schedule: " +err.stack);
+        if(doReacts){
+            await message.reply("An error occured while loading schedule: " +err.stack);
+        }else{
+            client.logger.error("An error occured while loading schedule: " +err.stack);
+        }
     }
   };
   
@@ -158,7 +207,7 @@ exports.run = async (client, message, args, level) => {// eslint-disable-line no
   exports.help = {
     name: "schedule",
     category: "Restreaming",
-    description: "Shows the published ALTTPR schedule for the specified date. If messageID is specified, update that post instead of creating a new one. Shortcuts 'schedule' for today's schedule and 'schedule needs' for today's needs.",
-    usage: "schedule <yesterday/TODAY/tomorrow/YYYY-MM-DD> <alttpr/sg/ALL/needs> <messageID>"
+    description: "Shows the published ALTTPR schedule for the specified date.",
+    usage: "schedule <yesterday/TODAY/tomorrow/YYYY-MM-DD> <alttpr/sg/ALL/needs/full> <messageID>"
   };
   
