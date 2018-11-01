@@ -1,12 +1,45 @@
 const moment = require('moment');
 const sgPre = require('../modules/SpeedGaming');
+function showRestreamers(x,i, expectedCrew){
+    if(expectedCrew[i] === 0){
+        return '';
+    }
+    return `Restreamers: ${x.crews[2].value.map(c=>c.discord).join(', ')} ${crewExtra(x,i,expectedCrew)}
+    `;
+}
+function crewExtra(x,i,expectedCrew){
+    let text = `(+${x.crews[i].count-x.crews[i].value.length})`;
 
+    if(x.crews[i].count-x.crews[i].value.length <= 0){
+        text = "";
+    }
+
+    if(x.crews[i].value.length < expectedCrew[i]){
+        text += " 👀";
+    }else{
+        text = "";
+    }
+
+    return text;
+}
 exports.run = async (client, message, args, level) => {// eslint-disable-line no-unused-vars
     try{
         let sg = sgPre(client);
-        const msg = await message.reply("Building schedule, please wait....");
         let baseTime = args[0] || "today";
         let target = args[1] || "alttpr";
+        let messageID = args[2] || null;
+
+        let msg;
+        if(messageID !== null){
+            msg = await message.channel.fetchMessage(messageID);
+            if(msg === null || msg.author.id !== client.user.id){
+                await message.react('❌');
+                return;
+            }
+        }else{
+            
+            msg = await message.reply("Building schedule, please wait....");
+        }
 
         if(args[0] === "needs"){
             baseTime = "today";
@@ -44,16 +77,20 @@ exports.run = async (client, message, args, level) => {// eslint-disable-line no
         }
         let fields = [];
         let description = (target === "needs") ? "Check below to see what crew we currently need!" : "Here's what we know about the schedule so far.";
+
+        description += `  __(Updated ${moment().format('ddd, hh:mmA')})__`;
         
         if(target !== "needs"){
-            fields = selected.map(x=> { return {
-                name: `**${moment(x.when).format('LT')}** | __${x.playerInfo.nameText}__`,
-                value: `ID: ${x.id} | [${x.channelName}](https://twitch.tv/${x.channelName})
-                Commentators: ${x.crews[0].value.map(c=>c.discord).join(', ')} (+${x.crews[0].count-x.crews[0].value.length})
-                Trackers: ${x.crews[1].value.map(c=>c.discord).join(', ')} (+${x.crews[1].count-x.crews[1].value.length})
-                Restreamers: ${x.crews[2].value.map(c=>c.discord).join(', ')} (+${x.crews[2].count-x.crews[2].value.length})
-                _${x.variations}_`
-            }});
+            fields = selected.map(x=> { 
+                let expectedCrew = [2, x.playerInfo.value.length > 2? 2:1, x.channelName.indexOf("SpeedGaming")!== -1 ? 0: 1];
+                return {
+                    name: `**${moment(x.when).format('LT')}** | __${x.playerInfo.nameText}__`,
+                    value: `ID: ${x.id} | [${x.channelName}](https://twitch.tv/${x.channelName})
+                    Commentators: ${x.crews[0].value.map(c=>c.discord).join(', ')} ${crewExtra(x,0,expectedCrew)}
+                    Trackers: ${x.crews[1].value.map(c=>c.discord).join(', ')} ${crewExtra(x,1,expectedCrew)}
+                    ${showRestreamers(x,2,expectedCrew)} _${x.variations}_`
+                }
+            });
         } else {
             var needsObject = [{name: "Commentary", text: "commentator", value: {}}, 
             {name: "Tracking", text: "tracker", value: {}}, {name: "Restreaming", text:"restreamer", value: {}}];
@@ -102,6 +139,10 @@ exports.run = async (client, message, args, level) => {// eslint-disable-line no
             description: description,
             fields: fields
         }});
+
+        if(messageID !== null){
+            message.react('✅');
+        }
     }catch(err){
         await message.reply("An error occured while loading schedule: " +err.stack);
     }
@@ -117,7 +158,7 @@ exports.run = async (client, message, args, level) => {// eslint-disable-line no
   exports.help = {
     name: "schedule",
     category: "Restreaming",
-    description: "Shows the published ALTTPR schedule for the specified date.",
-    usage: "schedule <yesterday/today/tomorrow/YYYY-MM-DD> <alttpr/sg/all/needs>"
+    description: "Shows the published ALTTPR schedule for the specified date. If messageID is specified, update that post instead of creating a new one. Shortcuts 'schedule' for today's schedule and 'schedule needs' for today's needs.",
+    usage: "schedule <yesterday/TODAY/tomorrow/YYYY-MM-DD> <alttpr/sg/ALL/needs> <messageID>"
   };
   
