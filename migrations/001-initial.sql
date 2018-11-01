@@ -14,4 +14,4 @@ CREATE TABLE ChannelInfo(
     );
 
 -- Down
-DROP TABLE ChannelInfo
+DROP TABLE ChannelInfo;
