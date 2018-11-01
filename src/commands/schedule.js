@@ -176,6 +176,7 @@ ${showRestreamers(x,2,expectedCrew)} _${x.variations}_`
 
         msg.edit({embed: {
             color: 0xFFF0E0,
+            url: "http://speedgaming.org/alttpr/crew/",
             title: `Schedule information for ${moment(baseTime).format('ll')}`,
             description: description,
             fields: fields
