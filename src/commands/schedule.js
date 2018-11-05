@@ -123,8 +123,6 @@ exports.run = async (client, message, [baseTime, target, messageID], level) => {
         let fields = [];
         let description = (target === "needs") ? "Check below to see what crew we currently need!" : "Here's what we found on the schedule.";
 
-        description += `  __(Updated ${moment().format('ddd, hh:mmA')})__`;
-        
         if(target !== "needs"){
             fields = selected.map(x=> { 
                 let expectedCrew = [2, x.playerInfo.value.length > 2? 2:1, x.channelName.indexOf("SpeedGaming")!== -1 ? 0: 1];
@@ -182,7 +180,12 @@ ${showRestreamers(x,2,expectedCrew)} _${x.variations}_`
             url: "http://speedgaming.org/alttpr/crew/",
             title: `Schedule information for ${moment(baseTime).format('ll')}`,
             description: description,
-            fields: fields
+            fields: fields,
+            timestamp: new Date(),
+            footer: {
+                icon_url: (client.emojis.find(x=>x.name === "SwagDuck") || {url: client.user.avatarURL}).url,
+                text: "Last updated: "
+            }
         }});
 
         if(messageID && doReacts){
@@ -211,6 +214,6 @@ ${showRestreamers(x,2,expectedCrew)} _${x.variations}_`
     name: "schedule",
     category: "Restreaming",
     description: "Shows the published ALTTPR schedule for the specified date.",
-    usage: "schedule <yesterday/TODAY/tomorrow/YYYY-MM-DD> <alttpr/sg/ALL/needs/full> <messageID>"
+    usage: "schedule <yesterday/TODAY/tomorrow/YYYY-MM-DD> <alttpr/sg/ALL/needs/full>"
   };
   
