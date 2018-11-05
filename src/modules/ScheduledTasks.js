@@ -1,5 +1,6 @@
 const TwitchChannel = require('./Auth').TwitchChannel;
 const NightbotChannel = require('./Auth').NightbotChannel;
+const moment = require('moment');
 async function refresh(client){
     let channels = await client.db.channelList();
 
@@ -31,9 +32,58 @@ async function refresh(client){
 
     scheduleUpdates.forEach(async update => {
         client.logger.debug(`Updating message ${update.messageId}...`)
+
+
         try{
             const scheduleCommand = client.commands.get("schedule");
-            await scheduleCommand.run(client, [update.guild, update.channelName, update.messageId], update.commandsArgs.split(' '), 3);
+            let needsMaintenance = moment(update.updated).isBefore(moment().startOf('day'));
+
+            if(needsMaintenance){
+                client.logger.debug(`Message ${update.messageId} is too old and needs to be recycled. ${update.updated}`);
+                
+                let guild = client.guilds.get(update.guild);
+                if(!guild){
+                    client.logger.error("Could not find guild "+message[0]);
+                    return;
+                }
+    
+                let channel = guild.channels.get(update.channelName);
+                if(!channel){
+                    client.logger.error("Could not find channel "+message[1]);
+                    return;
+                }
+    
+                let msg = null;
+                try{ 
+                    msg = await channel.fetchMessage(update.messageId);
+                    if(!msg || msg.author.id !== client.user.id){
+                        client.logger.error("Could not find message or no permissions "+update.messageId);
+                        return;
+                    }
+                    await msg.delete();
+                }catch(err){
+                    if(err.stack.indexOf("Unknown Message") !== -1){
+                        client.logger.error("Was this message already deleted? "+update.messageId);
+                    } else{
+                        throw err;
+                    }
+                }
+
+                let newMessage = await channel.send("Building the new schedule, this won't take long....");
+                let oldId = update.messageId;
+                update.messageId = newMessage.id;
+
+                client.db.scheduledIntervalPut(newMessage.id, update);
+                client.db.scheduledIntervalRemove(oldId);
+
+                
+            }
+
+            let msg = await scheduleCommand.run(client, [update.guild, update.channelName, update.messageId], update.commandsArgs.split(' '), 3);
+
+            if(needsMaintenance && msg){
+                await msg.react('🔁');
+            }
         } catch(err){
             client.logger.error("Error while processing update: "+err.stack);
         }

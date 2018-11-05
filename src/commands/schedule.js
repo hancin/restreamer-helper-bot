@@ -188,13 +188,16 @@ ${showRestreamers(x,2,expectedCrew)} _${x.variations}_`
         if(messageID && doReacts){
             message.react('✅');
         }
+        return msg;
     }catch(err){
         if(doReacts){
             await message.reply("An error occured while loading schedule: " +err.stack);
         }else{
             client.logger.error("An error occured while loading schedule: " +err.stack);
         }
+
     }
+    return null;
   };
   
   exports.conf = {
