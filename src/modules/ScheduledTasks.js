@@ -72,6 +72,7 @@ async function refresh(client){
                 let newMessage = await channel.send("Building the new schedule, this won't take long....");
                 let oldId = update.messageId;
                 update.messageId = newMessage.id;
+                update.updated = new Date().toISOString();
 
                 client.db.scheduledIntervalPut(newMessage.id, update);
                 client.db.scheduledIntervalRemove(oldId);
