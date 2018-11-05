@@ -25,7 +25,10 @@ module.exports = (client) => {
 
     function processEpisode(episode){
 
-        let res = Object.assign({}, episode);
+        let res = Object.assign({
+            channelName: '',
+            channelText: '',
+            primaryChannel: {}}, episode);
 
         res.commentatorCount = episode.commentators.length;
         res.commentators = episode.commentators.filter(x=>x.approved).map(parsePlayer);
@@ -77,8 +80,19 @@ module.exports = (client) => {
             allPlayers.push(...res.match2.players);
         }
 
+        let ignore = ['Undecided, Not SG', 'No Restream'];
+
+        if(res.channels){
+            res.channels = res.channels.filter(x=>!ignore.some(i => i.toLowerCase() === x.name.toLowerCase()));
+        }
+
         if(res.channels && res.channels.length > 0){
-            res.channelName = res.channels[0].name;
+            let primaryChannel = res.channels.find(x=>x.name.match(/^(speedgaming\d*|alttprandomizer\d*)$/gi));
+            res.channelName = primaryChannel ? primaryChannel.name : res.channels[0].name;
+            res.primaryChannel = primaryChannel;
+            let chan = res.channels.map(x=> `[${x.name}](https://twitch.tv/${x.name})`);
+            chan.sort();
+            res.channelText = chan.join(', ');
         }
 
         res.playerInfo = {
@@ -122,6 +136,7 @@ module.exports = (client) => {
             return processEpisode(episode.content);
     
         },
+        isPrimaryChannel: /^(speedgaming\d*|alttprandomizer\d*)$/gi,
         filterSgMatches: (episodes) => {
             return episodes.filter(m=> m.channels && m.channels.some(c=>c.name.toLowerCase().indexOf('speedgaming') !== -1));
         },

@@ -128,9 +128,11 @@ exports.run = async (client, message, [baseTime, target, messageID], level) => {
         if(target !== "needs"){
             fields = selected.map(x=> { 
                 let expectedCrew = [2, x.playerInfo.value.length > 2? 2:1, x.channelName.indexOf("SpeedGaming")!== -1 ? 0: 1];
+                if(!x.channelName.match(sg.isPrimaryChannel))
+                    expectedCrew = [0, 0, 0];
                 return {
                     name: `**${moment(x.when).format('LT')}** | __${x.playerInfo.nameText}__`,
-                    value: `ID: ${x.id} | [${x.channelName}](https://twitch.tv/${x.channelName})
+                    value: `ID: ${x.id} | ${x.channelText}
 Commentators: ${x.crews[0].value.map(c=>c.discord).join(', ')} ${crewExtra(x,0,expectedCrew)}
 Trackers: ${x.crews[1].value.map(c=>c.discord).join(', ')} ${crewExtra(x,1,expectedCrew)}
 ${showRestreamers(x,2,expectedCrew)} _${x.variations}_`
@@ -142,7 +144,8 @@ ${showRestreamers(x,2,expectedCrew)} _${x.variations}_`
 
             selected.forEach((ep) => {
                 let expectedCrew = [2, ep.playerInfo.value.length > 2? 2:1, ep.channelName.indexOf("SpeedGaming")!== -1 ? 0: 1];
-                
+                if(!ep.channelName.match(sg.isPrimaryChannel))
+                    expectedCrew = [0, 0, 0];
                 for(let i=0;i<3;i++){
                     let timeKey = moment(ep.when).format("h:mm A");
                     if(ep.crews[i].value.length < expectedCrew[i]){
