@@ -15,6 +15,13 @@ html(lang="en")
                 width: 33%;
                 min-height:1em;
             }
+            .dim{
+                font-size: 0.9em;
+                color: #404040;
+            }
+            .notneeded{
+                opacity: 0.85;
+            }
             .vis-labelset .vis-label .vis-inner {
                 width: 250px;
                 text-overflow: ellipsis;
@@ -34,6 +41,11 @@ html(lang="en")
             .restream{
                 background-color: #FF9928;
             }
+            .item{
+                border: 1px solid #97b0f8;
+                color: #1a1a1a;
+                background-color: #d5ddf6;
+            }
 
         link(href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css", rel="stylesheet")
         link(href="/vis/vis-timeline-graph2d.min.css", rel="stylesheet")
@@ -44,81 +56,86 @@ html(lang="en")
             div(id="match-visualization")
             h2 Crew availability
             div(id="crew-visualization")
+            h2 Matches in text form
+            div(id="match-text")
         script(src='//cdnjs.cloudflare.com/ajax/libs/moment.js/2.22.2/moment.min.js')
         script(src='//cdnjs.cloudflare.com/ajax/libs/handlebars.js/4.0.5/handlebars.min.js')
         script(src='/vis/vis.js')
         script(id="episode-template", type="text/x-handlebars-template")
-            table(class="race")
-                tr
-                    td(colspan="3",class="variations") {{data.variations}}
-                tr
-                    th(colspan="3",class="race") {{data.playerInfo.nameText}}
-                //- 
+            div(class="variations") {{data.variations}}
+            div(class="race") 
+                b [{{times data.when}}] {{data.playerInfo.nameText}}
+            table(class="race table")
+                thead
                     tr
-                        td(colspan="3",class="badges")
-                            span(class="badge badge-pill badge-light") {{data.crews.0.value.length}}C
-                            | 
-                            span(class="badge badge-pill badge-light") {{data.crews.1.value.length}}T
-                            | 
-                            span(class="badge badge-pill badge-light") {{data.crews.2.value.length}}R
-
-                tr
-                    td(class="comm crew")
-                        | {{#ifCond data.crews.0.value.length '<' 2}}
-                        span(style="float:right") 👀
-                        | {{/ifCond}}
-                        | {{#each data.crews.0.value}}
-                        div <b>{{this.name}}</b>
-                        | {{/each}}
-                    td(class="track crew")
-                        | {{#ifCond data.crews.1.value.length '<' 1}}
-                        span(style="float:right") 👀
-                        | {{/ifCond}}
-                        | {{#each data.crews.1.value}}
-                        div <b>{{this.name}}</b>
-                        | {{/each}}
+                        th Assigned
+                        th Available
+                tbody
+                    tr
+                        td(class="comm crew")
+                            | {{#ifCond data.crews.0.value.length '<' 2}}
+                            span(style="float:right") 👀
+                            | {{/ifCond}}
+                            | {{#each data.crews.0.value}}
+                            div <b>{{this.name}}</b>
+                            | {{/each}}
+                        td(class="comm crew {{#ifCond data.crews.0.value.length '>=' 2}}notneeded{{/ifCond}}")
+                            | {{#whatcrew data.when 'commentator' data.playerInfo.nameText}}
+                            div 
+                                | {{#ifCond this.data.isSingleMatch '||' this.data.isUnique}}<b>{{/ifCond}}
+                                | {{#if this.data.shifts}}<span class="dim">{{/if}}
+                                | {{this.name}}
+                                | {{#if this.data.isSingleMatch}}{{#if this.wants}}🌟{{else}}⭐{{/if}}{{else}}{{#if this.data.isUnique}}⭐{{/if}}{{/if}}
+                                | {{#if this.wants}}💚{{/if}}
+                                | {{#if this.data.shifts}}(🛠x{{this.data.shifts}}){{/if}}
+                                | {{#ifCond this.data.signups '>' 1}}(✔x{{this.data.signups}}){{/ifCond}}
+                                | {{#ifCond this.data.isSingleMatch '||' this.data.isUnique}}</b>{{/ifCond}}
+                                | {{#if this.data.shifts}}</span>{{/if}}
+                            | {{/whatcrew}}
+                    tr
+                        td(class="track crew")
+                            | {{#ifCond data.crews.1.value.length '<' 1}}
+                            span(style="float:right") 👀
+                            | {{/ifCond}}
+                            | {{#each data.crews.1.value}}
+                            div <b>{{this.name}}</b>
+                            | {{/each}}
+                        td(class="track crew {{#ifCond data.crews.1.value.length '>=' 1}}notneeded{{/ifCond}}")
+                            | {{#whatcrew data.when 'tracker' data.playerInfo.nameText}}
+                            div 
+                                | {{#ifCond this.data.isSingleMatch '||' this.data.isUnique}}<b>{{/ifCond}}
+                                | {{#if this.data.shifts}}<span class="dim">{{/if}}
+                                | {{this.name}}
+                                | {{#if this.data.isSingleMatch}}{{#if this.wants}}🌟{{else}}⭐{{/if}}{{else}}{{#if this.data.isUnique}}⭐{{/if}}{{/if}}
+                                | {{#if this.wants}}💚{{/if}}
+                                | {{#if this.data.shifts}}(🛠x{{this.data.shifts}}){{/if}}
+                                | {{#ifCond this.data.signups '>' 1}}(✔x{{this.data.signups}}){{/ifCond}}
+                                | {{#ifCond this.data.isSingleMatch '||' this.data.isUnique}}</b>{{/ifCond}}
+                                | {{#if this.data.shifts}}</span>{{/if}}
+                            | {{/whatcrew}}
                     | {{#if data.needsBroadcasters}}
-                    td(class="restream crew") 
-                        | {{#ifCond data.crews.2.value.length '<' 1}}
-                        span(style="float:right") 👀
-                        | {{/ifCond}}
-                        | {{#each data.crews.2.value}}
-                        div <b>{{this.name}}</b>
-                        | {{/each}}
+                    tr
+                        td(class="restream crew") 
+                            | {{#ifCond data.crews.2.value.length '<' 1}}
+                            span(style="float:right") 👀
+                            | {{/ifCond}}
+                            | {{#each data.crews.2.value}}
+                            div <b>{{this.name}}</b>
+                            | {{/each}}
+                        td(class="restream crew {{#ifCond data.crews.2.value.length '>=' 1}}notneeded{{/ifCond}}") 
+                            | {{#whatcrew data.when 'restreamer' data.playerInfo.nameText}}
+                            div 
+                                | {{#ifCond this.data.isSingleMatch '||' this.data.isUnique}}<b>{{/ifCond}}
+                                | {{#if this.data.shifts}}<span class="dim">{{/if}}
+                                | {{this.name}}
+                                | {{#if this.data.isSingleMatch}}{{#if this.wants}}🌟{{else}}⭐{{/if}}{{else}}{{#if this.data.isUnique}}⭐{{/if}}{{/if}}
+                                | {{#if this.wants}}💚{{/if}}
+                                | {{#if this.data.shifts}}(🛠x{{this.data.shifts}}){{/if}}
+                                | {{#ifCond this.data.signups '>' 1}}(✔x{{this.data.signups}}){{/ifCond}}
+                                | {{#ifCond this.data.isSingleMatch '||' this.data.isUnique}}</b>{{/ifCond}}
+                                | {{#if this.data.shifts}}</span>{{/if}}
+                            | {{/whatcrew}}
                     | {{/if}}
-                tr
-                    td(colspan="3") Availability
-                tr
-                    td(class="comm crew")
-                        | {{#whatcrew data.when 'commentator' data.playerInfo.nameText}}
-                        div 
-                            | {{this.name}}
-                            | {{#if this.data.isSingleMatch}}{{#if this.wants}}🌟{{else}}⭐{{/if}}{{else}}{{#if this.data.isUnique}}⭐{{/if}}{{/if}}
-                            | {{#if this.wants}}💚{{/if}}
-                            | {{#if this.data.shifts}}(🛠x{{this.data.shifts}}){{/if}}
-                            | {{#ifCond this.data.signups '>' 1}}(✔x{{this.data.signups}}){{/ifCond}}
-                        | {{/whatcrew}}
-                    td(class="track crew")
-                        | {{#whatcrew data.when 'tracker' data.playerInfo.nameText}}
-                        div 
-                            | {{this.name}}
-                            | {{#if this.data.isSingleMatch}}{{#if this.wants}}🌟{{else}}⭐{{/if}}{{else}}{{#if this.data.isUnique}}⭐{{/if}}{{/if}}
-                            | {{#if this.wants}}💚{{/if}}
-                            | {{#if this.data.shifts}}(🛠x{{this.data.shifts}}){{/if}}
-                            | {{#ifCond this.data.signups '>' 1}}(✔x{{this.data.signups}}){{/ifCond}}
-                        | {{/whatcrew}}
-                    | {{#if data.needsBroadcasters}}
-                    td(class="restream crew") 
-                        | {{#whatcrew data.when 'restreamer' data.playerInfo.nameText}}
-                        div 
-                            | {{this.name}}
-                            | {{#if this.data.isSingleMatch}}{{#if this.wants}}🌟{{else}}⭐{{/if}}{{else}}{{#if this.data.isUnique}}⭐{{/if}}{{/if}}
-                            | {{#if this.wants}}💚{{/if}}
-                            | {{#if this.data.shifts}}(🛠x{{this.data.shifts}}){{/if}}
-                            | {{#ifCond this.data.signups '>' 1}}(✔x{{this.data.signups}}){{/ifCond}}
-                        | {{/whatcrew}}
-                    | {{/if}}
-
     
         script.
             var dataSets = {
@@ -144,7 +161,7 @@ html(lang="en")
                         return -1;
                     if(!personA.isSingleMatch && personB.isSingleMatch)
                         return 1;
-                        
+
                     if(personA.isUnique && !personB.isUnique)
                         return -1;
                     if(!personA.isUnique && personB.isUnique)
@@ -173,6 +190,9 @@ html(lang="en")
                 return ret;
 
             });
+            Handlebars.registerHelper('times', function(time, options){
+                return moment(time).format('h:mm A');
+            });
             Handlebars.registerHelper('ifCond', function (v1, operator, v2, options) {
                 switch (operator) {
                     case '==':
@@ -191,6 +211,8 @@ html(lang="en")
                         return (v1 > v2) ? options.fn(this) : options.inverse(this);
                     case '>=':
                         return (v1 >= v2) ? options.fn(this) : options.inverse(this);
+                    case '&gt;=':
+                        return (v1 >= v2) ? options.fn(this) : options.inverse(this);
                     case '&&':
                         return (v1 && v2) ? options.fn(this) : options.inverse(this);
                     case '||':
@@ -200,42 +222,49 @@ html(lang="en")
                 }
             });
             var template = Handlebars.compile(document.getElementById('episode-template').innerHTML);
+
             var container = document.getElementById("match-visualization");
-            var data = [
-                ...dataSets.sg.map(
+            var arrayData = [...dataSets.sg.map(x=>({...x, group: 1})), ...dataSets.alttpr.map(x=>({...x, group: 2})), ...dataSets.other.map(x=>({...x, group: 3}))];
+            var data = arrayData.map(
                     function(item){
                         return {
                             id: item.id,
-                            group: 1,
+                            group: item.group,
                             data: Object.assign({}, item),
                             start: moment(item.when).format(),
                             end: moment(item.when).add(item.length, 'minutes').format()
                         };
                     }
-                ),
-                ...dataSets.alttpr.map(
-                    function(item){
-                        return {
-                            id: item.id,
-                            group: 2,
-                            data: Object.assign({}, item),
-                            start: moment(item.when).format(),
-                            end: moment(item.when).add(item.length, 'minutes').format()
-                        };
-                    }
-                ),
-                ...dataSets.other.map(
-                    function(item){
-                        return {
-                            id: item.id,
-                            group: 3,
-                            data: Object.assign({}, item),
-                            start: moment(item.when).format(),
-                            end: moment(item.when).add(item.length, 'minutes').format()
-                        };
-                    }
-                )
-            ];
+                );
+
+
+            data.sort((a,b) => {
+                return moment(a.start).diff(moment(b.start));
+            });
+
+            let output = "";
+            let lastTime = null;
+
+            data.forEach(item => {
+                let theTime = moment(item.start);
+                if(!lastTime || !theTime.isSame(lastTime)){
+                    if(lastTime)
+                        output += "</div>";
+                    output += "<h3>"+theTime.format("h:mm A")+"</h3>";
+                    output += "<div class=\"row\">";
+                    lastTime = theTime;
+
+                }
+
+                output += "<div class=\"item col-4 col-sm-6\">";
+                output += template(item);
+                output += "</div>";
+            });
+
+            if(lastTime)
+                output += "</div>";
+
+            document.getElementById("match-text").innerHTML = output;
             
             var groups = [
                 {
