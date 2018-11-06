@@ -97,9 +97,12 @@ module.exports = (client) => {
             let primaryChannel = res.channels.find(x=>x.name.match(/^(speedgaming\d*|alttprandomizer\d*)$/gi));
             res.channelName = primaryChannel ? primaryChannel.name : res.channels[0].name;
             res.primaryChannel = primaryChannel;
+            res.needsBroadcasters = !primaryChannel || primaryChannel.name.match(/^alttprandomizer\d*$/gi);
             let chan = res.channels.map(x=> `[${x.name}](https://twitch.tv/${x.name})`);
             chan.sort();
             res.channelText = chan.join(', ');
+        }else{
+            res.needsBroadcasters = true;
         }
 
         res.playerInfo = {

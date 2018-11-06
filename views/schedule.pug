@@ -25,11 +25,14 @@ html(lang="en")
             #crew-visualization .availability{
                 background-color: #efefef;
             }
-            .comms{
+            .comm{
                 background-color: #BDA4F7;
             }
             .track{
                 background-color: #63D0EC;
+            }
+            .restream{
+                background-color: #FF9928;
             }
 
         link(href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css", rel="stylesheet")
@@ -39,7 +42,7 @@ html(lang="en")
             h1= title
             h2 Match timeline
             div(id="match-visualization")
-            h2 Crew timeline
+            h2 Crew availability
             div(id="crew-visualization")
         script(src='//cdnjs.cloudflare.com/ajax/libs/moment.js/2.22.2/moment.min.js')
         script(src='//cdnjs.cloudflare.com/ajax/libs/handlebars.js/4.0.5/handlebars.min.js')
@@ -50,22 +53,152 @@ html(lang="en")
                     td(colspan="3",class="variations") {{data.variations}}
                 tr
                     th(colspan="3",class="race") {{data.playerInfo.nameText}}
+                //- 
+                    tr
+                        td(colspan="3",class="badges")
+                            span(class="badge badge-pill badge-light") {{data.crews.0.value.length}}C
+                            | 
+                            span(class="badge badge-pill badge-light") {{data.crews.1.value.length}}T
+                            | 
+                            span(class="badge badge-pill badge-light") {{data.crews.2.value.length}}R
+
                 tr
-                    td(colspan="3",class="badges")
-                        span(class="badge badge-pill badge-light") {{data.crews.0.value.length}}C
-                        | 
-                        span(class="badge badge-pill badge-light") {{data.crews.1.value.length}}T
-                        | 
-                        span(class="badge badge-pill badge-light") {{data.crews.2.value.length}}R
+                    td(class="comm crew")
+                        | {{#ifCond data.crews.0.value.length '<' 2}}
+                        span(style="float:right") 👀
+                        | {{/ifCond}}
+                        | {{#each data.crews.0.value}}
+                        div <b>{{this.name}}</b>
+                        | {{/each}}
+                    td(class="track crew")
+                        | {{#ifCond data.crews.1.value.length '<' 1}}
+                        span(style="float:right") 👀
+                        | {{/ifCond}}
+                        | {{#each data.crews.1.value}}
+                        div <b>{{this.name}}</b>
+                        | {{/each}}
+                    | {{#if data.needsBroadcasters}}
+                    td(class="restream crew") 
+                        | {{#ifCond data.crews.2.value.length '<' 1}}
+                        span(style="float:right") 👀
+                        | {{/ifCond}}
+                        | {{#each data.crews.2.value}}
+                        div <b>{{this.name}}</b>
+                        | {{/each}}
+                    | {{/if}}
+                tr
+                    td(colspan="3") Availability
+                tr
+                    td(class="comm crew")
+                        | {{#whatcrew data.when 'commentator' data.playerInfo.nameText}}
+                        div 
+                            | {{this.name}}
+                            | {{#if this.data.isSingleMatch}}{{#if this.wants}}🌟{{else}}⭐{{/if}}{{else}}{{#if this.data.isUnique}}⭐{{/if}}{{/if}}
+                            | {{#if this.wants}}💚{{/if}}
+                            | {{#if this.data.shifts}}(🛠x{{this.data.shifts}}){{/if}}
+                            | {{#ifCond this.data.signups '>' 1}}(✔x{{this.data.signups}}){{/ifCond}}
+                        | {{/whatcrew}}
+                    td(class="track crew")
+                        | {{#whatcrew data.when 'tracker' data.playerInfo.nameText}}
+                        div 
+                            | {{this.name}}
+                            | {{#if this.data.isSingleMatch}}{{#if this.wants}}🌟{{else}}⭐{{/if}}{{else}}{{#if this.data.isUnique}}⭐{{/if}}{{/if}}
+                            | {{#if this.wants}}💚{{/if}}
+                            | {{#if this.data.shifts}}(🛠x{{this.data.shifts}}){{/if}}
+                            | {{#ifCond this.data.signups '>' 1}}(✔x{{this.data.signups}}){{/ifCond}}
+                        | {{/whatcrew}}
+                    | {{#if data.needsBroadcasters}}
+                    td(class="restream crew") 
+                        | {{#whatcrew data.when 'restreamer' data.playerInfo.nameText}}
+                        div 
+                            | {{this.name}}
+                            | {{#if this.data.isSingleMatch}}{{#if this.wants}}🌟{{else}}⭐{{/if}}{{else}}{{#if this.data.isUnique}}⭐{{/if}}{{/if}}
+                            | {{#if this.wants}}💚{{/if}}
+                            | {{#if this.data.shifts}}(🛠x{{this.data.shifts}}){{/if}}
+                            | {{#ifCond this.data.signups '>' 1}}(✔x{{this.data.signups}}){{/ifCond}}
+                        | {{/whatcrew}}
+                    | {{/if}}
+
     
         script.
-            var template = Handlebars.compile(document.getElementById('episode-template').innerHTML);
             var dataSets = {
                 sg: !{JSON.stringify(sgEp)},
                 alttpr: !{JSON.stringify(alttprEp)},
                 other: !{JSON.stringify(otherEp)},
-                crewAvailability: !{JSON.stringify(crewAvailability)}
+                crewAvailability: !{JSON.stringify(crewAvailability)},
+                scheduleAvailability: !{JSON.stringify(scheduleAvailability)}
             };
+            Handlebars.registerHelper('whatcrew', function (whenT, role, match, options) {
+                let when = moment(whenT).utc().format();
+                if(!dataSets.scheduleAvailability[when])
+                    return "";
+                if(!dataSets.scheduleAvailability[when][role])
+                    return "";
+
+                let people = Object.keys(dataSets.scheduleAvailability[when][role]);
+                people.sort( (a, b)=> {
+                    let personA = dataSets.scheduleAvailability[when][role][a];
+                    let personB = dataSets.scheduleAvailability[when][role][b];
+                    if(personA.isUnique && !personB.isUnique)
+                        return -1;
+                    if(!personA.isUnique && personB.isUnique)
+                        return 1;
+                    
+                    if(personA.isSingleMatch && !personB.isSingleMatch)
+                        return -1;
+                    if(!personA.isSingleMatch && personB.isSingleMatch)
+                        return 1;
+                    
+                    let shiftDifference = personA.shifts.length - personB.shifts.length;
+                    if(shiftDifference !== 0)
+                        return shiftDifference;
+                    
+                    let aWants = personA.preferredMatches.includes(match);
+                    let bWants = personB.preferredMatches.includes(match);
+                    if(aWants && !bWants)
+                        return -1;
+                    if(!aWants && bWants)
+                        return 1;
+
+                    let availDifference = personA.availability.length - personB.availability.length;
+                    return availDifference;
+
+                });
+                let ret = "";
+                people.forEach(name => {
+                    ret += options.fn({name: name, wants: dataSets.scheduleAvailability[when][role][name].preferredMatches.includes(match), data: dataSets.scheduleAvailability[when][role][name]});
+                });
+
+                return ret;
+
+            });
+            Handlebars.registerHelper('ifCond', function (v1, operator, v2, options) {
+                switch (operator) {
+                    case '==':
+                        return (v1 == v2) ? options.fn(this) : options.inverse(this);
+                    case '===':
+                        return (v1 === v2) ? options.fn(this) : options.inverse(this);
+                    case '!=':
+                        return (v1 != v2) ? options.fn(this) : options.inverse(this);
+                    case '!==':
+                        return (v1 !== v2) ? options.fn(this) : options.inverse(this);
+                    case '<':
+                        return (v1 < v2) ? options.fn(this) : options.inverse(this);
+                    case '<=':
+                        return (v1 <= v2) ? options.fn(this) : options.inverse(this);
+                    case '>':
+                        return (v1 > v2) ? options.fn(this) : options.inverse(this);
+                    case '>=':
+                        return (v1 >= v2) ? options.fn(this) : options.inverse(this);
+                    case '&&':
+                        return (v1 && v2) ? options.fn(this) : options.inverse(this);
+                    case '||':
+                        return (v1 || v2) ? options.fn(this) : options.inverse(this);
+                    default:
+                        return options.inverse(this);
+                }
+            });
+            var template = Handlebars.compile(document.getElementById('episode-template').innerHTML);
             var container = document.getElementById("match-visualization");
             var data = [
                 ...dataSets.sg.map(
@@ -102,6 +235,7 @@ html(lang="en")
                     }
                 )
             ];
+            
             var groups = [
                 {
                     id: 1,
@@ -119,6 +253,31 @@ html(lang="en")
                     className: "setGroups"
                 }
             ];
+            var crewGroups = [];
+            var crewData = [];
+            var counter = 0;
+            let people = Object.keys(dataSets.crewAvailability).filter(x=> dataSets.crewAvailability[x].availability.length > 0);
+            people.sort((a,b) => {
+                let shiftDisparity = dataSets.crewAvailability[a].shifts.length - dataSets.crewAvailability[b].shifts.length;
+                if(shiftDisparity !== 0){
+                    return shiftDisparity;
+                }else{
+                    return ('' + a).localeCompare('' + b);
+                }
+            });
+            people.forEach(person => {
+                let crew = dataSets.crewAvailability[person];
+                counter++;
+                crewGroups.push({
+                    id: counter,
+                    content: person + (crew.shifts.length > 0 ? " (" + crew.shifts.length + " times) ⚠" : "✅"),
+                    className: "setGroups"
+                });
+
+                crewData.push(...crew.availability.map(a => Object.assign({}, a, {group: counter, content: a.role, className: "availability"})));
+                crewData.push(...crew.shifts.map(a => Object.assign({}, a, {group: counter, content: a.role, className: "shifts"})));
+
+            });
             var items = new vis.DataSet(data);
             var timeline = new vis.Timeline(container);
             var crewTimeline = new vis.Timeline(document.getElementById("crew-visualization"));
@@ -135,22 +294,7 @@ html(lang="en")
             timeline.setOptions({template: template});
             timeline.setGroups(groups);
             timeline.setItems(items);
-            var crewGroups = [];
-            var crewData = [];
-            var counter = 0;
-            Object.keys(dataSets.crewAvailability).forEach(person => {
-                let crew = dataSets.crewAvailability[person];
-                counter++;
-                crewGroups.push({
-                    id: counter,
-                    content: person + (crew.shifts.length > 0 ? " (" + crew.shifts.length + " times) ⚠" : "✅"),
-                    className: "setGroups"
-                });
-
-                crewData.push(...crew.availability.map(a => Object.assign({}, a, {group: counter, content: a.role, className: "availability"})));
-                crewData.push(...crew.shifts.map(a => Object.assign({}, a, {group: counter, content: a.role, className: "shifts"})));
-
-            });
+            
 
             var crewItems = new vis.DataSet(crewData);
             crewTimeline.setOptions({});

@@ -58,8 +58,6 @@ module.exports = (client) => {
             
         }, []);
 
-        console.log(allCrew);
-
         //Then, we reduce this mess into an availability per person
         let crewAvailability = allCrew.reduce((out, current) => {
             if(!out[current.name]){
@@ -86,17 +84,39 @@ module.exports = (client) => {
 
             return out;
         }, {});
+        let scheduleAvailability = {};
 
-        console.log(crewAvailability);
+        //Now the goal is to build an array of people and their availability for a role for a time period.
+        Object.keys(crewAvailability).forEach(name => {
+            let person = crewAvailability[name];
 
+            person.availability.forEach(avail => {
+                let start = moment(avail.start).utc().format();
+                if(!scheduleAvailability[start]){
+                    scheduleAvailability[start] = {commentator: {}, tracker: {}, restreamer: {}};
+                }
+                if(!scheduleAvailability[start][avail.role][name]){
+                    scheduleAvailability[start][avail.role][name] = {
+                        // Ugly hack to make sure we get unique matches
+                        preferredMatches: Array.from(new Set([...person.shifts.map(x=>x.match), ...person.availability.map(x=>x.match)])),
+                        isUnique: person.shifts.length === 0 && person.availability.length === 1,
+                        isSingleMatch: person.shifts.length === 0 && person.availability.every(a => a.match === avail.match),
+                        shifts: person.shifts.length,
+                        signups: person.availability.length
+                    };
+                }
 
+            });
+            
+        });
 
         return res.render("schedule", {
             title : `Schedule for ${event} on ${moment(baseTime).format('LL')}.`,
             sgEp: sgList,
             alttprEp: alttprList,
             otherEp: otherList,
-            crewAvailability: crewAvailability
+            crewAvailability: crewAvailability,
+            scheduleAvailability: scheduleAvailability
         });
     });
 
