@@ -139,14 +139,15 @@ html(lang="en")
                 people.sort( (a, b)=> {
                     let personA = dataSets.scheduleAvailability[when][role][a];
                     let personB = dataSets.scheduleAvailability[when][role][b];
-                    if(personA.isUnique && !personB.isUnique)
-                        return -1;
-                    if(!personA.isUnique && personB.isUnique)
-                        return 1;
                     
                     if(personA.isSingleMatch && !personB.isSingleMatch)
                         return -1;
                     if(!personA.isSingleMatch && personB.isSingleMatch)
+                        return 1;
+                        
+                    if(personA.isUnique && !personB.isUnique)
+                        return -1;
+                    if(!personA.isUnique && personB.isUnique)
                         return 1;
                     
                     let shiftDifference = personA.shifts.length - personB.shifts.length;
