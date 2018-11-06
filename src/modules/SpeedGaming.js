@@ -12,6 +12,7 @@ module.exports = (client) => {
 
     function parsePlayer(entry){
         let runner = {
+            approved: entry.approved || false,
             name: entry.displayName,
             stream: entry.publicStream,
             discord: entry.discordTag
@@ -31,12 +32,15 @@ module.exports = (client) => {
             primaryChannel: {}}, episode);
 
         res.commentatorCount = episode.commentators.length;
+        res.allCommentators = episode.commentators.map(parsePlayer);
         res.commentators = episode.commentators.filter(x=>x.approved).map(parsePlayer);
 
         res.trackerCount = episode.trackers.length;
+        res.allTrackers = episode.trackers.map(parsePlayer);
         res.trackers = episode.trackers.filter(x=>x.approved).map(parsePlayer);
 
         res.broadcasterCount = episode.broadcasters.length;
+        res.allBroadcasters = episode.broadcasters.map(parsePlayer);
         res.broadcasters = episode.broadcasters.filter(x=>x.approved).map(parsePlayer);
 
 
@@ -45,6 +49,7 @@ module.exports = (client) => {
             variable: "commentators",
             variable2: "commentatorNames",
             value: res.commentators, 
+            allValues: res.allCommentators,
             count: res.commentatorCount,
             streamText: res.commentators.map(x=> "twitch.tv/" + x.stream).join(" & "),
             nameText: res.commentators.map(x=> x.name).join(" & ")
@@ -53,6 +58,7 @@ module.exports = (client) => {
             variable: "trackers",
             variable2: "trackerNames",
             value: res.trackers, 
+            allValues: res.allTrackers,
             count: res.trackerCount,
             streamText: res.trackers.map(x=> "twitch.tv/" + x.stream).join(" & "),
             nameText: res.trackers.map(x=> x.name).join(" & ")},
@@ -60,6 +66,7 @@ module.exports = (client) => {
             variable: "restreamers",
             variable2: "restreamerNames",
             value: res.broadcasters,
+            allValues: res.allBroadcasters,
             count: res.broadcasterCount,
             streamText: res.broadcasters.map(x=> "twitch.tv/" + x.stream).join(" & "),
             nameText: res.broadcasters.map(x=> x.name).join(" & ")}

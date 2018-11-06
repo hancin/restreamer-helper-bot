@@ -1,26 +1,79 @@
-html
+html(lang="en")
     head
         title= title
+        meta(charset="utf-8")
+        style.
+            .race{
+                width:100%;
+            }
+            .variations{
+                font-size: 0.75em;
+                white-space: nowrap;
+                text-overflow: ellipsis;
+            }
+            .crew{
+                width: 33%;
+                min-height:1em;
+            }
+            .vis-labelset .vis-label .vis-inner {
+                width: 250px;
+                text-overflow: ellipsis;
+            }
+            #crew-visualization .shifts{
+                background-color: #afffaf;
+            }
+            #crew-visualization .availability{
+                background-color: #efefef;
+            }
+            .comms{
+                background-color: #BDA4F7;
+            }
+            .track{
+                background-color: #63D0EC;
+            }
+
+        link(href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css", rel="stylesheet")
         link(href="/vis/vis-timeline-graph2d.min.css", rel="stylesheet")
     body
-        h1= title
-        script(src='https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.22.2/moment.min.js')
+        main(class="container-fluid", role="main")
+            h1= title
+            h2 Match timeline
+            div(id="match-visualization")
+            h2 Crew timeline
+            div(id="crew-visualization")
+        script(src='//cdnjs.cloudflare.com/ajax/libs/moment.js/2.22.2/moment.min.js')
+        script(src='//cdnjs.cloudflare.com/ajax/libs/handlebars.js/4.0.5/handlebars.min.js')
         script(src='/vis/vis.js')
-        div(id="container")
+        script(id="episode-template", type="text/x-handlebars-template")
+            table(class="race")
+                tr
+                    td(colspan="3",class="variations") {{data.variations}}
+                tr
+                    th(colspan="3",class="race") {{data.playerInfo.nameText}}
+                tr
+                    td(colspan="3",class="badges")
+                        span(class="badge badge-pill badge-light") {{data.crews.0.value.length}}C
+                        | 
+                        span(class="badge badge-pill badge-light") {{data.crews.1.value.length}}T
+                        | 
+                        span(class="badge badge-pill badge-light") {{data.crews.2.value.length}}R
+    
         script.
+            var template = Handlebars.compile(document.getElementById('episode-template').innerHTML);
             var dataSets = {
                 sg: !{JSON.stringify(sgEp)},
                 alttpr: !{JSON.stringify(alttprEp)},
-                other: !{JSON.stringify(otherEp)}
+                other: !{JSON.stringify(otherEp)},
+                crewAvailability: !{JSON.stringify(crewAvailability)}
             };
-            var container = document.getElementById("container");
+            var container = document.getElementById("match-visualization");
             var data = [
                 ...dataSets.sg.map(
                     function(item){
                         return {
                             id: item.id,
                             group: 1,
-                            content: item.playerInfo.nameText,
+                            data: Object.assign({}, item),
                             start: moment(item.when).format(),
                             end: moment(item.when).add(item.length, 'minutes').format()
                         };
@@ -31,7 +84,7 @@ html
                         return {
                             id: item.id,
                             group: 2,
-                            content: item.playerInfo.nameText,
+                            data: Object.assign({}, item),
                             start: moment(item.when).format(),
                             end: moment(item.when).add(item.length, 'minutes').format()
                         };
@@ -42,31 +95,66 @@ html
                         return {
                             id: item.id,
                             group: 3,
-                            content: item.playerInfo.nameText,
+                            data: Object.assign({}, item),
                             start: moment(item.when).format(),
                             end: moment(item.when).add(item.length, 'minutes').format()
                         };
                     }
                 )
-            ]
+            ];
             var groups = [
                 {
                     id: 1,
-                    content: "SpeedGaming matches"
+                    content: "SpeedGaming",
+                    className: "setGroups"
                 },
                 {
                     id: 2,
-                    content: "ALTTPRandomizer matches"
+                    content: "ALTTPRandomizer",
+                    className: "setGroups"
                 },
                 {
                     id: 3,
-                    content: "Other matches"
+                    content: "Undecided",
+                    className: "setGroups"
                 }
             ];
             var items = new vis.DataSet(data);
-            var options = {};
             var timeline = new vis.Timeline(container);
-            timeline.setOptions(options);
+            var crewTimeline = new vis.Timeline(document.getElementById("crew-visualization"));
+
+            timeline.on('rangechanged', properties => {
+                var range = timeline.getWindow();
+                crewTimeline.setWindow(range.start, range.end, {animation: false});
+            });
+            
+            crewTimeline.on('rangechanged', properties => {
+                var range = crewTimeline.getWindow();
+                timeline.setWindow(range.start, range.end, {animation: false});
+            });
+            timeline.setOptions({template: template});
             timeline.setGroups(groups);
             timeline.setItems(items);
+            var crewGroups = [];
+            var crewData = [];
+            var counter = 0;
+            Object.keys(dataSets.crewAvailability).forEach(person => {
+                let crew = dataSets.crewAvailability[person];
+                counter++;
+                crewGroups.push({
+                    id: counter,
+                    content: person + (crew.shifts.length > 0 ? " (" + crew.shifts.length + " times) ⚠" : "✅"),
+                    className: "setGroups"
+                });
+
+                crewData.push(...crew.availability.map(a => Object.assign({}, a, {group: counter, content: a.role, className: "availability"})));
+                crewData.push(...crew.shifts.map(a => Object.assign({}, a, {group: counter, content: a.role, className: "shifts"})));
+
+            });
+
+            var crewItems = new vis.DataSet(crewData);
+            crewTimeline.setOptions({});
+            crewTimeline.setGroups(crewGroups);
+            crewTimeline.setItems(crewItems);
+            
 
