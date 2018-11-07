@@ -1,3 +1,15 @@
+mixin matchTemplate
+    div 
+        | {{#ifCond this.data.isSingleMatch '||' this.data.isUnique}}<b>{{/ifCond}}
+        | {{#if this.data.shifts}}<span class="dim">{{/if}}
+        | {{this.name}}
+        | {{#if this.data.isSingleMatch}}{{#if this.wants}}🌟{{else}}⭐{{/if}}{{else}}{{#if this.data.isUnique}}⭐{{/if}}{{/if}}
+        | {{#if this.wants}}💚{{/if}}
+        | {{#if this.data.shifts}}(🛠x{{this.data.shifts}}){{/if}}
+        | {{#ifCond this.data.signups '>' 1}}(✔x{{this.data.signups}}){{/ifCond}}
+        | {{#ifCond this.data.isSingleMatch '||' this.data.isUnique}}</b>{{/ifCond}}
+        | {{#if this.data.shifts}}</span>{{/if}}
+
 html(lang="en")
     head
         title= title
@@ -81,16 +93,7 @@ html(lang="en")
                             | {{/each}}
                         td(class="comm crew {{#ifCond data.crews.0.value.length '>=' 2}}notneeded{{/ifCond}}")
                             | {{#whatcrew data.when 'commentator' data.playerInfo.nameText}}
-                            div 
-                                | {{#ifCond this.data.isSingleMatch '||' this.data.isUnique}}<b>{{/ifCond}}
-                                | {{#if this.data.shifts}}<span class="dim">{{/if}}
-                                | {{this.name}}
-                                | {{#if this.data.isSingleMatch}}{{#if this.wants}}🌟{{else}}⭐{{/if}}{{else}}{{#if this.data.isUnique}}⭐{{/if}}{{/if}}
-                                | {{#if this.wants}}💚{{/if}}
-                                | {{#if this.data.shifts}}(🛠x{{this.data.shifts}}){{/if}}
-                                | {{#ifCond this.data.signups '>' 1}}(✔x{{this.data.signups}}){{/ifCond}}
-                                | {{#ifCond this.data.isSingleMatch '||' this.data.isUnique}}</b>{{/ifCond}}
-                                | {{#if this.data.shifts}}</span>{{/if}}
+                            +matchTemplate
                             | {{/whatcrew}}
                     tr
                         td(class="track crew")
@@ -102,16 +105,7 @@ html(lang="en")
                             | {{/each}}
                         td(class="track crew {{#ifCond data.crews.1.value.length '>=' 1}}notneeded{{/ifCond}}")
                             | {{#whatcrew data.when 'tracker' data.playerInfo.nameText}}
-                            div 
-                                | {{#ifCond this.data.isSingleMatch '||' this.data.isUnique}}<b>{{/ifCond}}
-                                | {{#if this.data.shifts}}<span class="dim">{{/if}}
-                                | {{this.name}}
-                                | {{#if this.data.isSingleMatch}}{{#if this.wants}}🌟{{else}}⭐{{/if}}{{else}}{{#if this.data.isUnique}}⭐{{/if}}{{/if}}
-                                | {{#if this.wants}}💚{{/if}}
-                                | {{#if this.data.shifts}}(🛠x{{this.data.shifts}}){{/if}}
-                                | {{#ifCond this.data.signups '>' 1}}(✔x{{this.data.signups}}){{/ifCond}}
-                                | {{#ifCond this.data.isSingleMatch '||' this.data.isUnique}}</b>{{/ifCond}}
-                                | {{#if this.data.shifts}}</span>{{/if}}
+                            +matchTemplate
                             | {{/whatcrew}}
                     | {{#if data.needsBroadcasters}}
                     tr
@@ -124,16 +118,7 @@ html(lang="en")
                             | {{/each}}
                         td(class="restream crew {{#ifCond data.crews.2.value.length '>=' 1}}notneeded{{/ifCond}}") 
                             | {{#whatcrew data.when 'restreamer' data.playerInfo.nameText}}
-                            div 
-                                | {{#ifCond this.data.isSingleMatch '||' this.data.isUnique}}<b>{{/ifCond}}
-                                | {{#if this.data.shifts}}<span class="dim">{{/if}}
-                                | {{this.name}}
-                                | {{#if this.data.isSingleMatch}}{{#if this.wants}}🌟{{else}}⭐{{/if}}{{else}}{{#if this.data.isUnique}}⭐{{/if}}{{/if}}
-                                | {{#if this.wants}}💚{{/if}}
-                                | {{#if this.data.shifts}}(🛠x{{this.data.shifts}}){{/if}}
-                                | {{#ifCond this.data.signups '>' 1}}(✔x{{this.data.signups}}){{/ifCond}}
-                                | {{#ifCond this.data.isSingleMatch '||' this.data.isUnique}}</b>{{/ifCond}}
-                                | {{#if this.data.shifts}}</span>{{/if}}
+                            +matchTemplate
                             | {{/whatcrew}}
                     | {{/if}}
     
@@ -304,7 +289,7 @@ html(lang="en")
                     className: "setGroups"
                 });
 
-                crewData.push(...crew.availability.map(a => Object.assign({}, a, {group: counter, content: a.role, className: "availability"})));
+                crewData.push(...crew.smartAvailability.map(a => Object.assign({}, a, {group: counter, content: a.role, className: "availability"})));
                 crewData.push(...crew.shifts.map(a => Object.assign({}, a, {group: counter, content: a.role, className: "shifts"})));
 
             });
@@ -321,13 +306,13 @@ html(lang="en")
                 var range = crewTimeline.getWindow();
                 timeline.setWindow(range.start, range.end, {animation: false});
             });
-            timeline.setOptions({template: template});
+            timeline.setOptions({template: template, clickToUse: true});
             timeline.setGroups(groups);
             timeline.setItems(items);
             
 
             var crewItems = new vis.DataSet(crewData);
-            crewTimeline.setOptions({});
+            crewTimeline.setOptions({clickToUse: true});
             crewTimeline.setGroups(crewGroups);
             crewTimeline.setItems(crewItems);
             
