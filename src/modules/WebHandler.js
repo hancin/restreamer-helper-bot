@@ -50,9 +50,9 @@ module.exports = (client) => {
 
         let allCrew = list.reduce((out, current) => {
             return [...out, 
-             ...current.crews[0].allValues.map(x=> Object.assign({}, x, {match: current.playerInfo.nameText, start: moment(current.when), end: moment(current.when).add(current.length, 'minutes'), duration: current.length, role: "commentator"})),
-             ...current.crews[1].allValues.map(x=> Object.assign({}, x, {match: current.playerInfo.nameText, start: moment(current.when), end: moment(current.when).add(current.length, 'minutes'), duration: current.length, role: "tracker"})),
-             ...current.crews[2].allValues.map(x=> Object.assign({}, x, {match: current.playerInfo.nameText, start: moment(current.when), end: moment(current.when).add(current.length, 'minutes'), duration: current.length, role: "restreamer"}))
+             ...current.crews[0].allValues.map(x=> Object.assign({}, x, {match: current.playerInfo.nameText, start: moment(current.when), end: moment(current.when).add(current.length-5, 'minutes'), duration: current.length, role: "commentator"})),
+             ...current.crews[1].allValues.map(x=> Object.assign({}, x, {match: current.playerInfo.nameText, start: moment(current.when), end: moment(current.when).add(current.length-5, 'minutes'), duration: current.length, role: "tracker"})),
+             ...current.crews[2].allValues.map(x=> Object.assign({}, x, {match: current.playerInfo.nameText, start: moment(current.when), end: moment(current.when).add(current.length-5, 'minutes'), duration: current.length, role: "restreamer"}))
             ];
             
         }, []);

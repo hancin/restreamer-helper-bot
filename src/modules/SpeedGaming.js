@@ -43,36 +43,6 @@ module.exports = (client) => {
         res.allBroadcasters = episode.broadcasters.map(parsePlayer);
         res.broadcasters = episode.broadcasters.filter(x=>x.approved).map(parsePlayer);
 
-
-        res.crews = [
-            {name:"Commentators",
-            variable: "commentators",
-            variable2: "commentatorNames",
-            value: res.commentators, 
-            allValues: res.allCommentators,
-            count: res.commentatorCount,
-            streamText: res.commentators.map(x=> "twitch.tv/" + x.stream).join(" & "),
-            nameText: res.commentators.map(x=> x.name).join(" & ")
-            },
-            {name:"Trackers", 
-            variable: "trackers",
-            variable2: "trackerNames",
-            value: res.trackers, 
-            allValues: res.allTrackers,
-            count: res.trackerCount,
-            streamText: res.trackers.map(x=> "twitch.tv/" + x.stream).join(" & "),
-            nameText: res.trackers.map(x=> x.name).join(" & ")},
-            {name:"Restreamers", 
-            variable: "restreamers",
-            variable2: "restreamerNames",
-            value: res.broadcasters,
-            allValues: res.allBroadcasters,
-            count: res.broadcasterCount,
-            streamText: res.broadcasters.map(x=> "twitch.tv/" + x.stream).join(" & "),
-            nameText: res.broadcasters.map(x=> x.name).join(" & ")}
-        ];
-
-        res.variations = episode.match1 && episode.match1.title? episode.match1.title : "";
         let allPlayers = [];
         let playerNames = "";
 
@@ -87,6 +57,39 @@ module.exports = (client) => {
             allPlayers.push(...res.match2.players);
         }
 
+
+        res.crews = [
+            {name:"Commentators",
+            variable: "commentators",
+            variable2: "commentatorNames",
+            value: res.commentators, 
+            allValues: res.allCommentators,
+            count: res.commentatorCount,
+            hasEnough: res.commentators.length >= 2,
+            streamText: res.commentators.map(x=> "twitch.tv/" + x.stream).join(" & "),
+            nameText: res.commentators.map(x=> x.name).join(" & ")
+            },
+            {name:"Trackers", 
+            variable: "trackers",
+            variable2: "trackerNames",
+            value: res.trackers, 
+            allValues: res.allTrackers,
+            count: res.trackerCount,
+            hasEnough: allPlayers.length > 2 ? res.trackers.length >= 2: res.trackers.length >= 1,
+            streamText: res.trackers.map(x=> "twitch.tv/" + x.stream).join(" & "),
+            nameText: res.trackers.map(x=> x.name).join(" & ")},
+            {name:"Restreamers", 
+            variable: "restreamers",
+            variable2: "restreamerNames",
+            value: res.broadcasters,
+            allValues: res.allBroadcasters,
+            count: res.broadcasterCount,
+            streamText: res.broadcasters.map(x=> "twitch.tv/" + x.stream).join(" & "),
+            nameText: res.broadcasters.map(x=> x.name).join(" & ")}
+        ];
+
+        res.variations = episode.match1 && episode.match1.title? episode.match1.title : "";
+        
         let ignore = ['Undecided, Not SG', 'No Restream'];
 
         if(res.channels){
@@ -97,13 +100,23 @@ module.exports = (client) => {
             let primaryChannel = res.channels.find(x=>x.name.match(/^(speedgaming\d*|alttprandomizer\d*)$/gi));
             res.channelName = primaryChannel ? primaryChannel.name : res.channels[0].name;
             res.primaryChannel = primaryChannel;
+            res.showAssigned = primaryChannel && true;
             res.needsBroadcasters = !primaryChannel || primaryChannel.name.match(/^alttprandomizer\d*$/gi);
             let chan = res.channels.map(x=> `[${x.name}](https://twitch.tv/${x.name})`);
             chan.sort();
             res.channelText = chan.join(', ');
         }else{
             res.needsBroadcasters = true;
+            res.showAssigned = false;
         }
+
+        if(res.needsBroadcasters){
+            res.crews[2].hasEnough = res.crews[2].value.length >= 1;
+        }else{
+            res.crews[2].hasEnough = true;
+        }
+
+        res.fullyStaffed = res.crews.every(x=>x.hasEnough);
 
         res.playerInfo = {
             "name": "Players",
