@@ -56,7 +56,7 @@ exports.run = async (client, message, [action, episode, ...note], level) => {// 
         let id = await client.db.matchNotesPutEpisode(realEp, Object.assign({}, client.db.matchNotesNew(), {
             memberId: message.author.id,
             episodeId: realEp,
-            permLevel: 3,
+            permLevel: 2,
             note: fullNote
         }));
 
