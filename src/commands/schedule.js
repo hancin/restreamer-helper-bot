@@ -83,9 +83,13 @@ exports.run = async (client, message, [baseTime, target, messageID], level) => {
             baseTime = "today";
             target = "needs";
         }
+        if(baseTime === "notes"){
+            baseTime = "today";
+            target = "notes";
+        }
 
 
-        if(target != "alttpr" && target != "all" && target != "sg" && target !== "needs" && target !== "full"){
+        if(target != "alttpr" && target != "all" && target != "sg" && target !== "needs" && target !== "full" && target !== "notes"){
             target = "all";
         }
         if(baseTime && baseTime.toLowerCase() == "yesterday"){
@@ -114,16 +118,48 @@ exports.run = async (client, message, [baseTime, target, messageID], level) => {
             selected = sg.filteredDisplayedMatches(list);
         }
 
+
+        if(target === "notes"){
+            let allNotes = await client.db.matchNotesList(Math.min(level, 3));
+            selected = allNotes.filter(x=>list.some(l=>l.id === x.episodeId));
+            console.log(selected);
+        }
+
         let now = moment();
         
-        if(target !== "full"){
+        if(target !== "full" && target !== "notes"){
             selected = selected.filter(x=>moment(x.when).isAfter(now));
         }
 
         let fields = [];
         let description = (target === "needs") ? "Check below to see what crew we currently need!" : "Here's what we found on the schedule.";
 
-        if(target !== "needs"){
+        if(target === "notes"){
+            let map = selected.reduce((out, note) => {
+                if(!out[note.episodeId]){
+                    out[note.episodeId] = [];
+                }
+
+                out[note.episodeId].push(note);
+
+                return out;
+            }, {});
+            console.log(map);
+
+            let controlled = [];
+
+            list.forEach(ep => {
+                let notes = map[ep.id] || [];
+                if(ep.match1 && ep.match1.note){
+                    notes.push({isPlay: true, note: ep.match1.note});
+                }
+                if(notes.length > 0){
+                    controlled.push({name: `**${moment(ep.when).format('LT')}** | __${ep.playerInfo.nameText}__`, value: notes.map(n=> (n.isPlay? "**Players: **": "**Crew: **") + n.note).join("\n")})
+                }
+            });
+
+            fields = controlled;
+        }else if(target !== "needs"){
             fields = selected.map(x=> { 
                 let expectedCrew = [2, x.playerInfo.value.length > 2? 2:1, x.channelName.indexOf("SpeedGaming")!== -1 ? 0: 1];
                 if(!x.channelName.match(sg.isPrimaryChannel))
@@ -214,6 +250,6 @@ ${showRestreamers(x,2,expectedCrew)} _${x.variations}_`
     name: "schedule",
     category: "Restreaming",
     description: "Shows the published ALTTPR schedule for the specified date.",
-    usage: "schedule <yesterday/TODAY/tomorrow/YYYY-MM-DD> <alttpr/sg/ALL/needs/full>"
+    usage: "schedule <yesterday/TODAY/tomorrow/YYYY-MM-DD> <alttpr/sg/ALL/needs/full/notes>"
   };
   
