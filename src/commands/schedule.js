@@ -120,7 +120,7 @@ exports.run = async (client, message, [baseTime, target, messageID], level) => {
 
 
         if(target === "notes"){
-            let allNotes = await client.db.matchNotesList(Math.min(level, 3));
+            let allNotes = await client.db.matchNotesList(Math.min(level, 2));
             selected = allNotes.filter(x=>list.some(l=>l.id === x.episodeId));
             console.log(selected);
         }
