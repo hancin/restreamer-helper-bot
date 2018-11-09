@@ -1,15 +1,34 @@
+mixin matchTemplate
+    div 
+        | {{#ifCond this.data.isSingleMatch '||' this.data.isUnique}}<b>{{/ifCond}}
+        | {{#if this.data.shifts}}<span class="dim">{{/if}}
+        | {{this.name}}
+        | {{#if this.data.isSingleMatch}}{{#if this.wants}}🌟{{else}}⭐{{/if}}{{else}}{{#if this.data.isUnique}}⭐{{/if}}{{/if}}
+        | {{#if this.wants}}💚{{/if}}
+        | {{#if this.data.shifts}}(🛠x{{this.data.shifts}}){{/if}}
+        //- | {{#ifCond this.data.signups '>' 1}}(✔x{{this.data.signups}}){{/ifCond}}
+        | {{#ifCond this.data.isSingleMatch '||' this.data.isUnique}}</b>{{/ifCond}}
+        | {{#if this.data.shifts}}</span>{{/if}}
+
 html(lang="en")
     head
         title= title
         meta(charset="utf-8")
+        link(href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css", rel="stylesheet")
+        link(href="/vis/vis-timeline-graph2d.min.css", rel="stylesheet")
         style.
             .race{
                 width:100%;
+                font-size: 0.9em;
             }
+            .race td, .race th{padding: 2px 0.75rem; margin:0;}
             .variations{
                 font-size: 0.75em;
                 white-space: nowrap;
                 text-overflow: ellipsis;
+            }
+            #crew-visualization .vis-item-content{
+                padding:0 5px;
             }
             .crew{
                 width: 33%;
@@ -44,11 +63,14 @@ html(lang="en")
             .item{
                 border: 1px solid #97b0f8;
                 color: #1a1a1a;
+            }
+            .assigned{
                 background-color: #d5ddf6;
             }
+            .present{
+                background-color: #efefef;
+            }
 
-        link(href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css", rel="stylesheet")
-        link(href="/vis/vis-timeline-graph2d.min.css", rel="stylesheet")
     body
         main(class="container-fluid", role="main")
             h1= title
@@ -68,73 +90,62 @@ html(lang="en")
             table(class="race table")
                 thead
                     tr
+                        | {{#if data.showAssigned}}
                         th Assigned
+                        | {{/if}}
+                        | {{#unless data.fullyStaffed}}
                         th Available
+                        | {{/unless}}
                 tbody
                     tr
+                        | {{#if data.showAssigned}}
                         td(class="comm crew")
-                            | {{#ifCond data.crews.0.value.length '<' 2}}
+                            | {{#unless data.crews.0.hasEnough}}
                             span(style="float:right") 👀
-                            | {{/ifCond}}
+                            | {{/unless}}
                             | {{#each data.crews.0.value}}
                             div <b>{{this.name}}</b>
                             | {{/each}}
+                        | {{/if}}
+                        | {{#unless data.crews.0.hasEnough}}
                         td(class="comm crew {{#ifCond data.crews.0.value.length '>=' 2}}notneeded{{/ifCond}}")
                             | {{#whatcrew data.when 'commentator' data.playerInfo.nameText}}
-                            div 
-                                | {{#ifCond this.data.isSingleMatch '||' this.data.isUnique}}<b>{{/ifCond}}
-                                | {{#if this.data.shifts}}<span class="dim">{{/if}}
-                                | {{this.name}}
-                                | {{#if this.data.isSingleMatch}}{{#if this.wants}}🌟{{else}}⭐{{/if}}{{else}}{{#if this.data.isUnique}}⭐{{/if}}{{/if}}
-                                | {{#if this.wants}}💚{{/if}}
-                                | {{#if this.data.shifts}}(🛠x{{this.data.shifts}}){{/if}}
-                                | {{#ifCond this.data.signups '>' 1}}(✔x{{this.data.signups}}){{/ifCond}}
-                                | {{#ifCond this.data.isSingleMatch '||' this.data.isUnique}}</b>{{/ifCond}}
-                                | {{#if this.data.shifts}}</span>{{/if}}
+                            +matchTemplate
                             | {{/whatcrew}}
+                        | {{/unless}}
                     tr
+                        | {{#if data.showAssigned}}
                         td(class="track crew")
-                            | {{#ifCond data.crews.1.value.length '<' 1}}
+                            | {{#unless data.crews.1.hasEnough}}
                             span(style="float:right") 👀
-                            | {{/ifCond}}
+                            | {{/unless}}
                             | {{#each data.crews.1.value}}
                             div <b>{{this.name}}</b>
                             | {{/each}}
+                        | {{/if}}
+                        | {{#unless data.crews.1.hasEnough}}
                         td(class="track crew {{#ifCond data.crews.1.value.length '>=' 1}}notneeded{{/ifCond}}")
                             | {{#whatcrew data.when 'tracker' data.playerInfo.nameText}}
-                            div 
-                                | {{#ifCond this.data.isSingleMatch '||' this.data.isUnique}}<b>{{/ifCond}}
-                                | {{#if this.data.shifts}}<span class="dim">{{/if}}
-                                | {{this.name}}
-                                | {{#if this.data.isSingleMatch}}{{#if this.wants}}🌟{{else}}⭐{{/if}}{{else}}{{#if this.data.isUnique}}⭐{{/if}}{{/if}}
-                                | {{#if this.wants}}💚{{/if}}
-                                | {{#if this.data.shifts}}(🛠x{{this.data.shifts}}){{/if}}
-                                | {{#ifCond this.data.signups '>' 1}}(✔x{{this.data.signups}}){{/ifCond}}
-                                | {{#ifCond this.data.isSingleMatch '||' this.data.isUnique}}</b>{{/ifCond}}
-                                | {{#if this.data.shifts}}</span>{{/if}}
+                            +matchTemplate
                             | {{/whatcrew}}
+                        | {{/unless}}
                     | {{#if data.needsBroadcasters}}
                     tr
+                        | {{#if data.showAssigned}}
                         td(class="restream crew") 
-                            | {{#ifCond data.crews.2.value.length '<' 1}}
+                            | {{#unless data.crews.2.hasEnough}}
                             span(style="float:right") 👀
-                            | {{/ifCond}}
+                            | {{/unless}}
                             | {{#each data.crews.2.value}}
                             div <b>{{this.name}}</b>
                             | {{/each}}
+                        | {{/if}}
+                        | {{#unless data.crews.2.hasEnough}}
                         td(class="restream crew {{#ifCond data.crews.2.value.length '>=' 1}}notneeded{{/ifCond}}") 
                             | {{#whatcrew data.when 'restreamer' data.playerInfo.nameText}}
-                            div 
-                                | {{#ifCond this.data.isSingleMatch '||' this.data.isUnique}}<b>{{/ifCond}}
-                                | {{#if this.data.shifts}}<span class="dim">{{/if}}
-                                | {{this.name}}
-                                | {{#if this.data.isSingleMatch}}{{#if this.wants}}🌟{{else}}⭐{{/if}}{{else}}{{#if this.data.isUnique}}⭐{{/if}}{{/if}}
-                                | {{#if this.wants}}💚{{/if}}
-                                | {{#if this.data.shifts}}(🛠x{{this.data.shifts}}){{/if}}
-                                | {{#ifCond this.data.signups '>' 1}}(✔x{{this.data.signups}}){{/ifCond}}
-                                | {{#ifCond this.data.isSingleMatch '||' this.data.isUnique}}</b>{{/ifCond}}
-                                | {{#if this.data.shifts}}</span>{{/if}}
+                            +matchTemplate
                             | {{/whatcrew}}
+                        | {{/unless}}
                     | {{/if}}
     
         script.
@@ -232,7 +243,7 @@ html(lang="en")
                             group: item.group,
                             data: Object.assign({}, item),
                             start: moment(item.when).format(),
-                            end: moment(item.when).add(item.length, 'minutes').format()
+                            end: moment(item.when).add(item.length-5, 'minutes').format()
                         };
                     }
                 );
@@ -256,7 +267,7 @@ html(lang="en")
 
                 }
 
-                output += "<div class=\"item col-4 col-sm-6\">";
+                output += "<div class=\"item col-3 col-sm-3 "+(item.data.showAssigned? "assigned" : "present")+"\">";
                 output += template(item);
                 output += "</div>";
             });
@@ -304,7 +315,7 @@ html(lang="en")
                     className: "setGroups"
                 });
 
-                crewData.push(...crew.availability.map(a => Object.assign({}, a, {group: counter, content: a.role, className: "availability"})));
+                crewData.push(...crew.smartAvailability.map(a => Object.assign({}, a, {group: counter, content: a.role, className: "availability"})));
                 crewData.push(...crew.shifts.map(a => Object.assign({}, a, {group: counter, content: a.role, className: "shifts"})));
 
             });
@@ -321,13 +332,13 @@ html(lang="en")
                 var range = crewTimeline.getWindow();
                 timeline.setWindow(range.start, range.end, {animation: false});
             });
-            timeline.setOptions({template: template});
+            timeline.setOptions({template: template, clickToUse: true, moveable: false});
             timeline.setGroups(groups);
             timeline.setItems(items);
             
 
             var crewItems = new vis.DataSet(crewData);
-            crewTimeline.setOptions({});
+            crewTimeline.setOptions({clickToUse: true, moveable: false});
             crewTimeline.setGroups(crewGroups);
             crewTimeline.setItems(crewItems);
             

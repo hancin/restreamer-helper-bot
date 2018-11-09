@@ -36,7 +36,6 @@ module.exports = (client) => {
         }
 
         let list = await sg.list(moment(baseTime).startOf('day').add(181, 'minutes').format(), moment(baseTime).endOf('day').add(181, 'minutes').format(), 'alttpr');
-
         let event = "alttpr";
         if(list.length > 0){
             event = list[0].event.name;
@@ -44,15 +43,16 @@ module.exports = (client) => {
 
         let alttprList = sg.filterAlttprMatches(list);
         let sgList = sg.filterSgMatches(list);
-        let otherList = sg.filterOtherMatches(list);
+        let otherList = [...sg.filterOtherMatches(list), ...sgList.filter(x=>!x.primaryChannel)];
+        sgList = sgList.filter(x=>x.primaryChannel);
 
         //First, we flatten all crew availables into a giant single massive array.
 
         let allCrew = list.reduce((out, current) => {
             return [...out, 
-             ...current.crews[0].allValues.map(x=> Object.assign({}, x, {match: current.playerInfo.nameText, start: moment(current.when), end: moment(current.when).add(current.length, 'minutes'), duration: current.length, role: "commentator"})),
-             ...current.crews[1].allValues.map(x=> Object.assign({}, x, {match: current.playerInfo.nameText, start: moment(current.when), end: moment(current.when).add(current.length, 'minutes'), duration: current.length, role: "tracker"})),
-             ...current.crews[2].allValues.map(x=> Object.assign({}, x, {match: current.playerInfo.nameText, start: moment(current.when), end: moment(current.when).add(current.length, 'minutes'), duration: current.length, role: "restreamer"}))
+             ...current.crews[0].allValues.map(x=> Object.assign({}, x, {match: current.playerInfo.nameText, start: moment(current.when), end: moment(current.when).add(current.length-5, 'minutes'), duration: current.length, role: "commentator"})),
+             ...current.crews[1].allValues.map(x=> Object.assign({}, x, {match: current.playerInfo.nameText, start: moment(current.when), end: moment(current.when).add(current.length-5, 'minutes'), duration: current.length, role: "tracker"})),
+             ...current.crews[2].allValues.map(x=> Object.assign({}, x, {match: current.playerInfo.nameText, start: moment(current.when), end: moment(current.when).add(current.length-5, 'minutes'), duration: current.length, role: "restreamer"}))
             ];
             
         }, []);
@@ -63,12 +63,12 @@ module.exports = (client) => {
                 out[current.name] = {
                     isBusy: false,
                     availability: [], 
+                    smartAvailability: [],
                     shifts: [],
                     all: []
                 };
             }
 
-            const now = moment();
             out[current.name].isBusy = out[current.name].isBusy || current.approved;
             out[current.name].all.push(current);
             if(current.approved){
@@ -79,10 +79,13 @@ module.exports = (client) => {
             }else if(!out[current.name].shifts.some(shift => overlaps(shift.start, current.start, shift.end, current.end))){
 
                 out[current.name].availability.push(current);
+
+
             }
 
             return out;
         }, {});
+
         let scheduleAvailability = {};
 
         //Now the goal is to build an array of people and their availability for a role for a time period.
@@ -90,6 +93,15 @@ module.exports = (client) => {
             let person = crewAvailability[name];
 
             person.availability.forEach(avail => {
+                let overlappingItem = person.smartAvailability.find(x=>overlaps(x.start, avail.start, x.end, avail.end) && x.role === avail.role);
+
+                if(!overlappingItem){
+                    person.smartAvailability.push(avail);
+                }else{
+                    overlappingItem.start = moment.min(moment(avail.start), moment(overlappingItem.start)); 
+                    overlappingItem.end = moment.max(moment(avail.end), moment(overlappingItem.end)); 
+                }
+
                 let start = moment(avail.start).utc().format();
                 if(!scheduleAvailability[start]){
                     scheduleAvailability[start] = {commentator: {}, tracker: {}, restreamer: {}};
