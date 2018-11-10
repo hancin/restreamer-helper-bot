@@ -1,8 +1,13 @@
 const moment = require('moment');
 const sgPre = require('../modules/SpeedGaming');
-exports.run = async (client, message, [when], level) => {// eslint-disable-line no-unused-vars
+exports.run = async (client, message, [who], level) => {// eslint-disable-line no-unused-vars
     if(message.author.dmChannel){
         message.author.dmChannel.startTyping();
+    }
+
+    let discordId = message.author.tag.toLowerCase();
+    if(who && level >= 2){
+        discordId = who.toLowerCase();
     }
     
     try{
@@ -14,7 +19,6 @@ exports.run = async (client, message, [when], level) => {// eslint-disable-line 
 
     let list = await sg.list(moment().startOf('day').toISOString(), end.toISOString(), 'alttpr', false);
 
-    const discordId = message.author.tag.toLowerCase();
     list = list.filter(x=>x.crews.some(c=>c.allValues.some(staff => staff.discord.toLowerCase() === discordId)));
 
     console.log(list);
