@@ -132,7 +132,7 @@ module.exports = (client) => {
     }
 
     return {
-        list: async (from, to, event) => {
+        list: async (from, to, event, filter=true) => {
             let episodes = await sendSGRequest(`/schedule?from=${from}&to=${to}&event=${event}`)
     
             if(!episodes.content || episodes.content.error){
@@ -140,7 +140,7 @@ module.exports = (client) => {
                 return [];
             }
     
-            let filtered = episodes.content.filter(m=>m.approved);
+            let filtered = filter? episodes.content.filter(m=>m.approved) : episodes.content;
     
             for(var i=0;i<filtered.length;i++){
                 filtered[i] = processEpisode(filtered[i]);
