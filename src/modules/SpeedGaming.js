@@ -15,6 +15,7 @@ module.exports = (client) => {
             approved: entry.approved || false,
             name: entry.displayName,
             stream: entry.publicStream,
+            language: entry.language || "en",
             discord: entry.discordTag
         }
 
@@ -66,8 +67,8 @@ module.exports = (client) => {
             allValues: res.allCommentators,
             count: res.commentatorCount,
             hasEnough: res.commentators.length >= 2,
-            streamText: res.commentators.map(x=> "twitch.tv/" + x.stream).join(" & "),
-            nameText: res.commentators.map(x=> x.name).join(" & ")
+            streamText: res.commentators.filter(x => x.language == "en").map(x=> "twitch.tv/" + x.stream).join(" & "),
+            nameText: res.commentators.filter(x => x.language == "en").map(x=> x.name).join(" & ")
             },
             {name:"Trackers", 
             variable: "trackers",
@@ -76,8 +77,8 @@ module.exports = (client) => {
             allValues: res.allTrackers,
             count: res.trackerCount,
             hasEnough: allPlayers.length > 2 ? res.trackers.length >= 2: res.trackers.length >= 1,
-            streamText: res.trackers.map(x=> "twitch.tv/" + x.stream).join(" & "),
-            nameText: res.trackers.map(x=> x.name).join(" & ")},
+            streamText: res.trackers.filter(x => x.language == "en").map(x=> "twitch.tv/" + x.stream).join(" & "),
+            nameText: res.trackers.filter(x => x.language == "en").map(x=> x.name).join(" & ")},
             {name:"Restreamers", 
             variable: "restreamers",
             variable2: "restreamerNames",
