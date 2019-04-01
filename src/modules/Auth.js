@@ -272,6 +272,8 @@ exports.NightbotChannel = class NightbotChannel{
             if(!this.commands || this.commands.size === 0){
                 let nbData = await NightbotChannel.sendNightbotRequest("/commands", this.token.sign({}));
 
+                console.log(nbData);
+
                 nbData.content.commands.forEach(command =>{
                     this.commands.set(command.name, command._id);
                 });
@@ -282,6 +284,17 @@ exports.NightbotChannel = class NightbotChannel{
             const errorMsg = err.stack.replace(new RegExp(`${__dirname}/`, "g"), "./");
             client.logger.error(`Error while obtaining nightbot command list: ${errorMsg}`);
             return false;
+        }
+    }
+
+    async showCommands(){
+        try{
+            await this.ensureHasCommands();
+            return this.commands;
+        } catch (err){
+            const errorMsg = err.stack.replace(new RegExp(`${__dirname}/`, "g"), "./");
+            this.client.logger.error(`Error while obtaining nightbot command list: ${errorMsg}`);
+            return [];
         }
     }
 

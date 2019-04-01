@@ -141,16 +141,28 @@ exports.run = async (client, message, args, level) => {// eslint-disable-line no
     let override = args[1] === "force" && level >= 2;
 
     if(args[1] === "force" && level < 2){
-        message.react('📛');
+        try{
+            await message.react('📛');
+        } catch(err){
+            await message.reply("📛 This override requires you to be a moderator, so I can't run it for you.");
+        }
         return;
     }
 
     const result = await updateCommands(args[0] || 0, override, client, sg);
 
     if(result.success){
-        message.react('✅');
+        try{
+            await message.react('✅');
+        } catch(err){
+            await message.reply("It looks like I can't react to you here but I just wanted to tell you everything's alright ✅");
+        }
     }else if(result.needsConfirmation){
-        message.react('⚠');
+        try{
+            await message.react('⚠');
+        } catch(err){
+            await message.reply("It looks like I can't react to you here but I just wanted to something's not quite right ⚠. Check my next message below for details");
+        }
         switch(result.confirmationType){
             case "channel-online":
                 await message.channel.send(`The channel your race is currently on is currently online, so the commands cannot be updated right now. A moderator can override this by using \`$commands ${args[0]} force\``);
@@ -163,7 +175,11 @@ exports.run = async (client, message, args, level) => {// eslint-disable-line no
                 break;
         }
     }else{
-        message.react('❌');
+        try{
+            await message.react('❌');
+        } catch(err){
+            await message.reply("It looks like I can't react to you, and I'm sorry but I just can't do that right now ❌. Check my next message below for details");
+        }
         switch(result.errorType){
             case "not-found":
                 await message.channel.send(`Could not find episode ${args[0]}.`);
