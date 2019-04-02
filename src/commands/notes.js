@@ -22,12 +22,14 @@ exports.run = async (client, message, [action, episode, ...note], level) => {// 
     if(!episode){
         await message.react('❌');
         await message.reply('`episode` is required');
+        return;
     }
 
     
     if(action === "add" && !fullNote){
         await message.react('❌');
         await message.reply('`message` is required');
+        return;
     }
 
     let realEp = parseInt(episode);
@@ -37,6 +39,7 @@ exports.run = async (client, message, [action, episode, ...note], level) => {// 
     if(!ep){
         await message.react('❌');
         await message.reply('Could not obtain episode '+realEp+".");
+        return;
     }
 
     if(action === "show"){
