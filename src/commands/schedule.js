@@ -39,6 +39,8 @@ exports.run = async (client, message, [baseTime, target, messageID], level) => {
         target = "all";
     }
 
+
+
     if(messageID && level < 3){
         message.react("📛");
         return;
@@ -47,6 +49,8 @@ exports.run = async (client, message, [baseTime, target, messageID], level) => {
     let doReacts = false;
     try{
         let msg;
+
+        let settings;
 
         if(message.length && message.length === 3){
             let guild = client.guilds.get(message[0]);
@@ -67,8 +71,11 @@ exports.run = async (client, message, [baseTime, target, messageID], level) => {
                 return;
             }
 
+            settings = client.getSettings(guild.id);
+
         }else{
             doReacts = true;
+            settings = message.settings;
         }
 
         let sg = sgPre(client);
@@ -114,7 +121,7 @@ exports.run = async (client, message, [baseTime, target, messageID], level) => {
         }
 
 
-        let list = await sg.list(moment(baseTime).startOf('day').format(), moment(baseTime).endOf('day').add(181, 'minutes').format(), message.settings.event);
+        let list = await sg.list(moment(baseTime).startOf('day').format(), moment(baseTime).endOf('day').add(181, 'minutes').format(), settings.event);
 
         let selected = [];
 
@@ -123,7 +130,7 @@ exports.run = async (client, message, [baseTime, target, messageID], level) => {
         }else if(target === "alttpr"){
             selected = sg.filterAlttprMatches(list);
         }else if(target === "all" || target === "needs" || target === "full"){
-            selected = sg.filteredDisplayedMatches(list, message.settings.showTBD === "1" || message.settings.showTBD === "true" || message.settings.showTBD === 1);
+            selected = sg.filteredDisplayedMatches(list, settings.showTBD === "1" || settings.showTBD === "true" || settings.showTBD === 1);
         }
 
 
@@ -175,8 +182,8 @@ exports.run = async (client, message, [baseTime, target, messageID], level) => {
                 return {
                     name: `**${moment(x.when).format('LT')}** | __${x.playerInfo.nameText}__`,
                     value: `ID: ${x.id} | ${x.channelText || "**TBD**"}
-Commentators: ${x.crews[0].value.map(c=>c.discord).map(p=>findUser(p, message)).join(', ')} ${crewExtra(x,0,expectedCrew)}
-Trackers: ${x.crews[1].value.map(c=>c.discord).map(p=>findUser(p, message)).join(', ')} ${crewExtra(x,1,expectedCrew)}
+Commentators: ${x.crews[0].value.map(c=>c.discord).map(p=>findUser(p, msg)).join(', ')} ${crewExtra(x,0,expectedCrew)}
+Trackers: ${x.crews[1].value.map(c=>c.discord).map(p=>findUser(p, msg)).join(', ')} ${crewExtra(x,1,expectedCrew)}
 ${showRestreamers(x,2,expectedCrew)} _${x.variations}_`
                 }
             });
@@ -221,7 +228,7 @@ ${showRestreamers(x,2,expectedCrew)} _${x.variations}_`
 
         msg.edit({embed: {
             color: 0xFFF0E0,
-            url: "http://speedgaming.org/"+message.settings.event+"/crew/",
+            url: "http://speedgaming.org/"+settings.event+"/crew/",
             title: `Schedule information for ${moment(baseTime).format('ll')}`,
             description: description,
             fields: fields,
