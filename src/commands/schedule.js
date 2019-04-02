@@ -28,7 +28,7 @@ function findUser(u, message){
         message.reply(`Cannot find user ${u} in this server. Check SG info?`);
         return u;
     }
-    return user.toString();
+    return user.displayName;
 }
 exports.run = async (client, message, [baseTime, target, messageID], level) => {// eslint-disable-line no-unused-vars
     
