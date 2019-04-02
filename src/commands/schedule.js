@@ -189,7 +189,7 @@ ${showRestreamers(x,2,expectedCrew)} _${x.variations}_`
             });
         } else {
             var needsObject = [{name: "Commentary", text: "commentator", value: {}}, 
-            {name: "Tracking", text: "tracker", value: {}}, {name: "Restreaming", text:"restreamer", value: {}}];
+            {name: "Tracking", text: "tracker", value: {}}/*, {name: "Restreaming", text:"restreamer", value: {}}*/];
 
             selected.forEach((ep) => {
                 let expectedCrew = [2, ep.playerInfo.value.length > 2? 2:1, ep.channelName.indexOf("SpeedGaming")!== -1 ? 0: 1];
