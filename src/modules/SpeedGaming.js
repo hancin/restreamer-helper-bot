@@ -167,8 +167,8 @@ module.exports = (client) => {
         filterAlttprMatches: (episodes) => {
             return episodes.filter(m=> m.channels && m.channels.some(c=>c.name.toLowerCase().indexOf('alttprandomizer') !== -1));
         },
-        filteredDisplayedMatches: (episodes) => {
-            return episodes.filter(m=> m.channels && m.channels.some(c=>c.name.toLowerCase().indexOf('alttprandomizer') !== -1 || c.name.toLowerCase().indexOf('speedgaming') !== -1));
+        filteredDisplayedMatches: (episodes, showTBD) => {
+            return episodes.filter(m=> ((!m.channels || m.channels.length === 0) && showTBD) || (m.channels && m.channels.some(c=>c.name.toLowerCase().indexOf('alttprandomizer') !== -1 || c.name.toLowerCase().indexOf('speedgaming') !== -1)));
         }, 
         filterOtherMatches: (episodes) => {
             return episodes.filter(m=> !m.channels || m.channels.length === 0 || (m.channels && m.channels.some(c=>c.name.toLowerCase().indexOf('alttprandomizer') === -1 && c.name.toLowerCase().indexOf('speedgaming') === -1)));

@@ -17,7 +17,7 @@ exports.run = async (client, message, [who], level) => {// eslint-disable-line n
 
     const sg = sgPre(client);
 
-    let list = await sg.list(moment().startOf('day').toISOString(), end.toISOString(), 'alttpr', false);
+    let list = await sg.list(moment().startOf('day').toISOString(), end.toISOString(), message.settings.event, false);
 
     list = list.filter(x=>x.crews.some(c=>c.allValues.some(staff => staff.discord.toLowerCase() === discordId)));
 
@@ -66,7 +66,7 @@ exports.run = async (client, message, [who], level) => {// eslint-disable-line n
   
   exports.conf = {
     enabled: true,
-    guildOnly: false,
+    guildOnly: true,
     aliases: [],
     permLevel: "User"
   };

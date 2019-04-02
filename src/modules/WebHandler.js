@@ -17,7 +17,7 @@ module.exports = (client) => {
     const sg = sgPre(client);
     app.use(express.static('src/public'));
     app.set("view engine", "pug");
-    app.get('/schedule/:when', async (req, res) => {
+    app.get('/schedule/:what/:when', async (req, res) => {
 
         let baseTime = req.params.when;
 
@@ -35,8 +35,9 @@ module.exports = (client) => {
             baseTime = new Date();
         }
 
-        let list = await sg.list(moment(baseTime).startOf('day').add(181, 'minutes').format(), moment(baseTime).endOf('day').add(181, 'minutes').format(), 'alttpr');
-        let event = "alttpr";
+        let event = req.params.what;
+
+        let list = await sg.list(moment(baseTime).startOf('day').add(181, 'minutes').format(), moment(baseTime).endOf('day').add(181, 'minutes').format(), event);
         if(list.length > 0){
             event = list[0].event.name;
         }
