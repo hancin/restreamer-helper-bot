@@ -22,6 +22,14 @@ function crewExtra(x,i,expectedCrew){
 
     return text;
 }
+function findUser(u, message){
+    let user = message.guild.members.find(x=>x.user.tag == u);
+    if(!user){
+        message.reply(`Cannot find user ${u} in this server. Check SG info?`);
+        return u;
+    }
+    return user.displayName;
+}
 exports.run = async (client, message, [baseTime, target, messageID], level) => {// eslint-disable-line no-unused-vars
     
     if(!baseTime){
@@ -31,6 +39,8 @@ exports.run = async (client, message, [baseTime, target, messageID], level) => {
         target = "all";
     }
 
+
+
     if(messageID && level < 3){
         message.react("📛");
         return;
@@ -39,6 +49,8 @@ exports.run = async (client, message, [baseTime, target, messageID], level) => {
     let doReacts = false;
     try{
         let msg;
+
+        let settings;
 
         if(message.length && message.length === 3){
             let guild = client.guilds.get(message[0]);
@@ -59,8 +71,11 @@ exports.run = async (client, message, [baseTime, target, messageID], level) => {
                 return;
             }
 
+            settings = client.getSettings(guild.id);
+
         }else{
             doReacts = true;
+            settings = message.settings;
         }
 
         let sg = sgPre(client);
@@ -106,7 +121,7 @@ exports.run = async (client, message, [baseTime, target, messageID], level) => {
         }
 
 
-        let list = await sg.list(moment(baseTime).startOf('day').format(), moment(baseTime).endOf('day').add(181, 'minutes').format(), 'alttpr');
+        let list = await sg.list(moment(baseTime).startOf('day').format(), moment(baseTime).endOf('day').add(181, 'minutes').format(), settings.event);
 
         let selected = [];
 
@@ -115,7 +130,7 @@ exports.run = async (client, message, [baseTime, target, messageID], level) => {
         }else if(target === "alttpr"){
             selected = sg.filterAlttprMatches(list);
         }else if(target === "all" || target === "needs" || target === "full"){
-            selected = sg.filteredDisplayedMatches(list);
+            selected = sg.filteredDisplayedMatches(list, settings.showTBD === "1" || settings.showTBD === "true" || settings.showTBD === 1);
         }
 
 
@@ -161,20 +176,20 @@ exports.run = async (client, message, [baseTime, target, messageID], level) => {
             fields = controlled;
         }else if(target !== "needs"){
             fields = selected.map(x=> { 
-                let expectedCrew = [2, x.playerInfo.value.length > 2? 2:1, x.channelName.indexOf("SpeedGaming")!== -1 ? 0: 1];
-                if(!x.channelName.match(sg.isPrimaryChannel))
+                let expectedCrew = [2, x.playerInfo.value.length > 2? 2:1, !x.channelName || x.channelName.indexOf("SpeedGaming")!== -1 ? 0: 1];
+                if(x.channelName && !x.channelName.match(sg.isPrimaryChannel))
                     expectedCrew = [0, 0, 0];
                 return {
                     name: `**${moment(x.when).format('LT')}** | __${x.playerInfo.nameText}__`,
-                    value: `ID: ${x.id} | ${x.channelText}
-Commentators: ${x.crews[0].value.map(c=>c.discord).join(', ')} ${crewExtra(x,0,expectedCrew)}
-Trackers: ${x.crews[1].value.map(c=>c.discord).join(', ')} ${crewExtra(x,1,expectedCrew)}
+                    value: `ID: ${x.id} | ${x.channelText || "**TBD**"}
+Commentators: ${x.crews[0].value.map(c=>c.discord).map(p=>findUser(p, msg)).join(', ')} ${crewExtra(x,0,expectedCrew)}
+Trackers: ${x.crews[1].value.map(c=>c.discord).map(p=>findUser(p, msg)).join(', ')} ${crewExtra(x,1,expectedCrew)}
 ${showRestreamers(x,2,expectedCrew)} _${x.variations}_`
                 }
             });
         } else {
             var needsObject = [{name: "Commentary", text: "commentator", value: {}}, 
-            {name: "Tracking", text: "tracker", value: {}}, {name: "Restreaming", text:"restreamer", value: {}}];
+            {name: "Tracking", text: "tracker", value: {}}/*, {name: "Restreaming", text:"restreamer", value: {}}*/];
 
             selected.forEach((ep) => {
                 let expectedCrew = [2, ep.playerInfo.value.length > 2? 2:1, ep.channelName.indexOf("SpeedGaming")!== -1 ? 0: 1];
@@ -199,7 +214,7 @@ ${showRestreamers(x,2,expectedCrew)} _${x.variations}_`
                 
                 fields.push({
                     name: `**__${section.name} - ${moment(baseTime).format("dddd, MMMM Do")}__**`,
-                    value: values.join("\n")
+                    value: values.join("\n") 
                 });
             });
         }
@@ -213,7 +228,7 @@ ${showRestreamers(x,2,expectedCrew)} _${x.variations}_`
 
         msg.edit({embed: {
             color: 0xFFF0E0,
-            url: "http://speedgaming.org/alttpr/crew/",
+            url: "http://speedgaming.org/"+settings.event+"/crew/",
             title: `Schedule information for ${moment(baseTime).format('ll')}`,
             description: description,
             fields: fields,
@@ -249,7 +264,7 @@ ${showRestreamers(x,2,expectedCrew)} _${x.variations}_`
   exports.help = {
     name: "schedule",
     category: "Restreaming",
-    description: "Shows the published ALTTPR schedule for the specified date.",
+    description: "Shows the published event schedule for the specified date.",
     usage: "schedule <yesterday/TODAY/tomorrow/YYYY-MM-DD> <alttpr/sg/ALL/needs/full/notes>"
   };
   

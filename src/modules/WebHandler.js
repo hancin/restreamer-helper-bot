@@ -35,8 +35,9 @@ module.exports = (client) => {
             baseTime = new Date();
         }
 
-        let list = await sg.list(moment(baseTime).startOf('day').add(181, 'minutes').format(), moment(baseTime).endOf('day').add(181, 'minutes').format(), 'alttpr');
         let event = req.params.what;
+
+        let list = await sg.list(moment(baseTime).startOf('day').add(181, 'minutes').format(), moment(baseTime).endOf('day').add(181, 'minutes').format(), event);
         if(list.length > 0){
             event = list[0].event.name;
         }
