@@ -115,7 +115,8 @@ exports.scheduledIntervalPut = async (pk, data) => {
         updated,
         requester,
         requesterMessageId,
-        commandsArgs) VALUES(?,?,?,?,?,?,?,?)`, 
+        commandsArgs,
+        expiresAt) VALUES(?,?,?,?,?,?,?,?,?)`, 
         pk, 
         data.guild,
         data.channelName,
@@ -123,7 +124,8 @@ exports.scheduledIntervalPut = async (pk, data) => {
         data.updated,
         data.requester,
         data.requesterMessageId,
-        data.commandsArgs);
+        data.commandsArgs,
+        data.expiresAt);
 };
 exports.scheduledIntervalNew = () => {
     return {

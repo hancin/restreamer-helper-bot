@@ -1,4 +1,5 @@
 
+const moment = require('moment');
 exports.run = async (client, message, [action, messageId, channel, ...args], level) => {// eslint-disable-line no-unused-vars
     try{
     
@@ -8,8 +9,8 @@ exports.run = async (client, message, [action, messageId, channel, ...args], lev
             return;
         }
 
-        if(action !== "add" && action !== "remove" && action !== "list"){
-            await message.reply("`action` must be add, remove, or list.");
+        if(action !== "add" && action !== "remove" && action !== "list" && action !== "rollover"){
+            await message.reply("`action` must be add, remove, list or rollover.");
             await message.react("❌");
             return;
         }
@@ -52,6 +53,34 @@ exports.run = async (client, message, [action, messageId, channel, ...args], lev
                     return;
                 }
             }
+        }
+
+        else if (action === "rollover") {
+            let when = messageId || "tomorrow";
+            let replaceWord = "today";
+            const intervals = await client.db.scheduledIntervalList();
+            const filteredIntervals = intervals.filter(x=>x.guild == message.guild.id);
+
+            for(const update of filteredIntervals){
+                
+    
+                let channel = message.guild.channels.get(update.channelName);
+                if(!channel){
+                    client.logger.error("Could not find channel "+message[1]);
+                    return;
+                }
+
+                let newMessage = await channel.send("The new schedule will appear here shortly.");
+
+                let replace = update;
+                replace.expiresAt = moment().add(24, 'hours').startOf('day').format();
+                replace.commandsArgs = replace.commandsArgs.replace(replaceWord, when);
+
+                await client.db.scheduledIntervalPut(newMessage.id, replace);
+
+            }
+
+            return;
         }
 
 
@@ -144,6 +173,6 @@ exports.run = async (client, message, [action, messageId, channel, ...args], lev
     name: "scheduleinterval",
     category: "Restreaming",
     description: "Set a bot post to be updated every 15 minutes with the schedule command listed.",
-    usage: "scheduleinterval <add/remove/list> <messageID/new> <channel> <other parameters passed to schedule>"
+    usage: "scheduleinterval <add/remove/list/rollover> <messageID/new> <channel> <other parameters passed to schedule>"
   };
   

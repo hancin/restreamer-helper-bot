@@ -39,8 +39,9 @@ async function refresh(client){
             try{
                 const scheduleCommand = client.commands.get("schedule");
                 let needsMaintenance = moment(update.updated).isBefore(moment().startOf('day'));
-
-                if(needsMaintenance){
+                console.log(update);
+                let isExpired = update.expiresAt && moment(update.expiresAt).isSameOrBefore(moment());
+                if(needsMaintenance || isExpired){
                     client.logger.debug(`Message ${update.messageId} is too old and needs to be recycled. ${update.updated}`);
                     
                     let guild = client.guilds.get(update.guild);
@@ -71,13 +72,19 @@ async function refresh(client){
                         }
                     }
 
-                    let newMessage = await channel.send("Building the new schedule, this won't take long....");
-                    let oldId = update.messageId;
-                    update.messageId = newMessage.id;
-                    update.updated = new Date().toISOString();
+                    if(isExpired){
+                        client.logger.debug("Expired message will get removed...");
+                        client.db.scheduledIntervalRemove(update.messageId);
+                    } else {
+                        let newMessage = await channel.send("Building the new schedule, this won't take long....");
+                        let oldId = update.messageId;
+                        update.messageId = newMessage.id;
+                        update.updated = new Date().toISOString();
+    
+                        client.db.scheduledIntervalPut(newMessage.id, update);
+                        client.db.scheduledIntervalRemove(oldId);
+                    }
 
-                    client.db.scheduledIntervalPut(newMessage.id, update);
-                    client.db.scheduledIntervalRemove(oldId);
 
                     
                 }
