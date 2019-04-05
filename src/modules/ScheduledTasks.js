@@ -89,10 +89,12 @@ async function refresh(client){
                     
                 }
 
-                let msg = await scheduleCommand.run(client, [update.guild, update.channelName, update.messageId], update.commandsArgs.split(' '), 3);
+                if(!isExpired){
+                    let msg = await scheduleCommand.run(client, [update.guild, update.channelName, update.messageId], update.commandsArgs.split(' '), 3);
 
-                if(needsMaintenance && msg){
-                    await msg.react('🔁');
+                    if(needsMaintenance && msg){
+                        await msg.react('🔁');
+                    }
                 }
             } catch(err){
                 client.logger.error("Error while processing update: "+err.stack);
