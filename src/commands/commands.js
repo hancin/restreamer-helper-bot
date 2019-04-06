@@ -17,7 +17,7 @@ function templateReplace(template, episode){
         .replace(`$(variations)`, episode.variations);
 }
 
-async function updateCommands(id, override, client, sg){
+async function updateCommands(id, override, client, sg, message){
     var data = {};
     try{
         let episode = await sg.get(id);
@@ -84,11 +84,11 @@ async function updateCommands(id, override, client, sg){
         }
 
         const commandMap = new Map([
-            ['!c', 'Thanks to our volunteers! Commentary: $(commentators) // Tracking: $(trackers) // Restream: $(restreamers)'],
-            ['!r', 'Enjoying the race? Follow the runners! $(players)'],
-            ['!mode', 'The settings for this match are $(variations). See more information on these settings at https://alttpr.com/options ! Find out what the symbols mean at https://i.imgur.com/cec8yKj.png'],
+            ['!c', message.settings.commandsC || 'Thanks to our volunteers! Commentary: $(commentators) // Tracking: $(trackers) // Restream: $(restreamers)'],
+            ['!r', message.settings.commmandsR || 'Enjoying the race? Follow the runners! $(players)'],
+            ['!mode', message.settings.commandsMode || 'The settings for this match are $(variations). See more information on these settings at https://alttpr.com/options ! Find out what the symbols mean at https://i.imgur.com/cec8yKj.png'],
         ]);
-        const titleTemplate = "$(name). $(playerNames). !alttpr for info, !mode for settings";
+        const titleTemplate = message.settings.commandsTitle || "$(name). $(playerNames). !alttpr for info, !mode for settings";
 
 
         try{
@@ -149,7 +149,7 @@ exports.run = async (client, message, args, level) => {// eslint-disable-line no
         return;
     }
 
-    const result = await updateCommands(args[0] || 0, override, client, sg);
+    const result = await updateCommands(args[0] || 0, override, client, sg, message);
 
     if(result.success){
         try{
