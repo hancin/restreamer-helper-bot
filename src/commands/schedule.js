@@ -25,7 +25,7 @@ function crewExtra(x,i,expectedCrew){
 function findUser(u, message, settings){
     let user = message.guild.members.find(x=>x.user.tag == u);
     if(!user){
-        if(!settings || settings.alertOnUnknownDiscordUser){
+        if(!settings || settings.showCannotFindError === "1"){
             message.reply(`Cannot find user ${u} in this server. Check SG info?`);
         }
         return u;
