@@ -22,10 +22,12 @@ function crewExtra(x,i,expectedCrew){
 
     return text;
 }
-function findUser(u, message){
+function findUser(u, message, settings){
     let user = message.guild.members.find(x=>x.user.tag == u);
     if(!user){
-        message.reply(`Cannot find user ${u} in this server. Check SG info?`);
+        if(!settings || settings.alertOnUnknownDiscordUser){
+            message.reply(`Cannot find user ${u} in this server. Check SG info?`);
+        }
         return u;
     }
     return user.displayName;
@@ -182,8 +184,8 @@ exports.run = async (client, message, [baseTime, target, messageID], level) => {
                 return {
                     name: `**${moment(x.when).format('LT')}** | __${x.playerInfo.nameText}__`,
                     value: `ID: ${x.id} | ${x.channelText || "**TBD**"}
-Commentators: ${x.crews[0].value.map(c=>c.discord).map(p=>findUser(p, msg)).join(', ')} ${crewExtra(x,0,expectedCrew)}
-Trackers: ${x.crews[1].value.map(c=>c.discord).map(p=>findUser(p, msg)).join(', ')} ${crewExtra(x,1,expectedCrew)}
+Commentators: ${x.crews[0].value.map(c=>c.discord).map(p=>findUser(p, msg, settings)).join(', ')} ${crewExtra(x,0,expectedCrew)}
+Trackers: ${x.crews[1].value.map(c=>c.discord).map(p=>findUser(p, msg, settings)).join(', ')} ${crewExtra(x,1,expectedCrew)}
 ${showRestreamers(x,2,expectedCrew)} _${x.variations}_`
                 }
             });
