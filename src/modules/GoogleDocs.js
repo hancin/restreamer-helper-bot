@@ -257,15 +257,15 @@ module.exports = (client) => {
                 let channel = row[columnMapping.channel];
 
                 if(/\d+/.test(channel)){
-                    channel = "alttprandomizer" + channel;
+                    channel = "ALTTPRandomizer" + channel;
 
                 }else if(!channel){
                     channel = "";
                 }
                 if(/alttprandomizer1/i.test(channel)){
-                    channel = "alttprandomizer";
+                    channel = "ALTTPRandomizer";
                 }
-                episode.channels.push({language: "en", id:99999, name: channel, slug: channel});
+                episode.channels.push({language: "en", id:99999, name: channel, slug: channel.toLowerCase()});
             }
 
             if("date" in columnMapping){
@@ -367,8 +367,8 @@ module.exports = (client) => {
 
             return filtered;
         },
-        get: async(id) => {
-            let episodes = await getEpisodes(client.settings.event);
+        get: async(id, event) => {
+            let episodes = await getEpisodes(event);
 
             if(!episodes || episodes.length === 0){
                 client.logger.debug("No episodes?");

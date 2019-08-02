@@ -20,7 +20,7 @@ function templateReplace(template, episode){
 async function updateCommands(id, override, client, sg, message){
     var data = {};
     try{
-        let episode = await sg.get(id);
+        let episode = await sg.get(id, message.settings.event);
 
         if(episode === null){
             data.success = false;

@@ -2,6 +2,7 @@ const fetch = require('node-fetch');
 const docsPre = require('./GoogleDocs');
 module.exports = (client) => {
     const docs = docsPre(client);
+    const cl = client;
 
     async function sendSGRequest(url, options = {}){
         const mergedOptions = Object.assign({},{}, options);
@@ -155,9 +156,9 @@ module.exports = (client) => {
 
             return filtered;
         },
-        get: async(id) => {
-            if(client.settings.event.startsWith("sheets::")){
-                return await docs.get(id);
+        get: async(id, event) => {
+            if(event.startsWith("sheets::")){
+                return await docs.get(id, event);
             }
             
             let episode = await sendSGRequest(`/episode?id=${id}`);
