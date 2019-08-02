@@ -231,9 +231,20 @@ ${showRestreamers(x,2,expectedCrew)} _${x.variations}_`
             });
         }
 
+        let url = "http://speedgaming.org/"+settings.event+"/crew/"
+        if(settings.event.startsWith("sheets::")){
+            let sId = settings.event.substr(8);
+            let cur = sId.indexOf('::');
+            if(cur !== -1){
+                sId = sId.substr(0, cur);
+            }
+
+            url = `https://docs.google.com/spreadsheets/d/${sId}/edit`
+        }
+
         msg.edit({embed: {
             color: 0xFFF0E0,
-            url: "http://speedgaming.org/"+settings.event+"/crew/",
+            url: url,
             title: `Schedule information for ${moment(baseTime).format('ll')}`,
             description: description,
             fields: fields,
@@ -249,10 +260,9 @@ ${showRestreamers(x,2,expectedCrew)} _${x.variations}_`
         }
         return msg;
     }catch(err){
-        if(doReacts){
-            await message.reply("An error occured while loading schedule: " +err.stack);
-        }else{
-            client.logger.error("An error occured while loading schedule: " +err.stack);
+        client.logger.error("An error occured while loading schedule: " +err.stack);
+        if(doReacts && message){
+            await message.reply("An error occured while loading schedule: " +encodeURIComponent(err.stack));
         }
 
     }
