@@ -89,7 +89,7 @@ module.exports = (client) => {
             nameText: res.broadcasters.map(x=> x.name).join(" & ")}
         ];
 
-        res.variations = episode.match1 && episode.match1.title? episode.match1.title : "";
+        res.variations = episode.variations? episode.variations : (episode.match1 && episode.match1.title? episode.match1.title : "");
         
         let ignore = ['Undecided, Not SG', 'No Restream'];
 
