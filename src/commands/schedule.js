@@ -188,7 +188,7 @@ exports.run = async (client, message, [baseTime, target, messageID], level) => {
                     value: `ID: ${x.id} | ${x.channelText || "**TBD**"}
 Commentators: ${x.crews[0].value.map(c=>c.discord).map(p=>findUser(p, msg, settings)).join(', ')} ${crewExtra(x,0,expectedCrew)}
 Trackers: ${x.crews[1].value.map(c=>c.discord).map(p=>findUser(p, msg, settings)).join(', ')} ${crewExtra(x,1,expectedCrew)}
-${showRestreamers(x,2,expectedCrew)} _${settings.showVariations ? x.variations: ''}_ ${setupText}`
+${showRestreamers(x,2,expectedCrew)} _${settings.showVariations !== "0" ? x.variations: ''}_ ${setupText}`
                 }
             });
         } else {
