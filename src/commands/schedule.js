@@ -178,6 +178,8 @@ exports.run = async (client, message, [baseTime, target, messageID], level) => {
             fields = controlled;
         }else if(target !== "needs"){
             fields = selected.map(x=> { 
+                let setupText = settings.showSetupTime ? `
+                _Setup starts *${moment(x.when).subtract(settings.setupTimeSubtract, 'minutes').format('LT')}*_` : '';
                 let expectedCrew = [2, x.playerInfo.value.length > 2? 2:1, !x.channelName || x.channelName.indexOf("SpeedGaming")!== -1 ? 0: 1];
                 if(x.channelName && !x.channelName.match(sg.isPrimaryChannel))
                     expectedCrew = [0, 0, 0];
@@ -186,7 +188,7 @@ exports.run = async (client, message, [baseTime, target, messageID], level) => {
                     value: `ID: ${x.id} | ${x.channelText || "**TBD**"}
 Commentators: ${x.crews[0].value.map(c=>c.discord).map(p=>findUser(p, msg, settings)).join(', ')} ${crewExtra(x,0,expectedCrew)}
 Trackers: ${x.crews[1].value.map(c=>c.discord).map(p=>findUser(p, msg, settings)).join(', ')} ${crewExtra(x,1,expectedCrew)}
-${showRestreamers(x,2,expectedCrew)} _${x.variations}_`
+${showRestreamers(x,2,expectedCrew)} _${settings.showVariations ? x.variations: ''}_ ${setupText}`
                 }
             });
         } else {
@@ -207,7 +209,7 @@ ${showRestreamers(x,2,expectedCrew)} _${x.variations}_`
             });
 
             needsObject.forEach((section) => {
-                if(section.text === "restreamer")
+                if(section.text === "restreamer" && )
                     return;
                     
                 let times = Object.keys(section.value);
