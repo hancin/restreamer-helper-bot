@@ -209,7 +209,7 @@ ${showRestreamers(x,2,expectedCrew)} _${settings.showVariations ? x.variations: 
             });
 
             needsObject.forEach((section) => {
-                if(section.text === "restreamer" && )
+                if(section.text === "restreamer" && settings.showRestreamers !== "1")
                     return;
                     
                 let times = Object.keys(section.value);
